@@ -54,4 +54,18 @@ return function(S)
     log_diag(diag,id and "ACCEPT-CAST" or "REJECT-CAST")
     if id and S.submit then S.submit(id) else S.message(why or "Duel unavailable","X") end
   end
+  function S.teach_button(button,kind,now)
+    local B,K=badge.input.BUTTON,badge.input.KIND
+    if kind~=K.PRESSED then return end
+    if button==B.B then
+      S.capture=nil
+      if S.phase=="teach" then S.training=nil;S.phase="train_select"
+      else S.reset_home();S.mode_button=nil end
+    elseif S.phase=="train_select" then
+      if button==B.UP then S.selected=(S.selected+1)%3+1
+      elseif button==B.DOWN then S.selected=S.selected%3+1
+      elseif button==B.A then S.training={spell=S.selected,samples={}};S.phase="teach" end
+    elseif S.phase=="teach" and button==B.A and not S.capture then S.capture_start(now) end
+  end
+  S.mode_button=S.teach_button
 end
