@@ -42,13 +42,11 @@ local last_state_tx, last_ping, deadline = 0, 0, 0
 local capture, training, models = nil, nil, {{},{},{}}
 local note, note_until, effect, effect_until = "", 0, "", 0
 local buttons, brightness, leave_until = false, 160, 0
-local sensor_x,sensor_y,sensor_z
-local reads,changes,diag_since=0,0,0
 local led_rows={1,1,2,3,3,2}
 local light_levels={0,64,160,255}
 local radio_started=false
 local widgets, text_cache, visible_phase = {}, {}, nil
-local last_sample_at, next_gc = 0, 0
+local next_gc = 0
 local stats_dirty, slot, locally_ended = false, 0, false
 
 local function clamp(v,a,b) return min(b,max(a,v)) end
@@ -367,7 +365,7 @@ local function render(now)
   else
     local body=""
     if phase=="home" or phase=="lobby" or phase=="train_select" then
-      local items=phase=="home" and {"Find a duel","Practice spells","Teach a spell","Diagnostics"} or {}
+      local items=phase=="home" and {"Find a duel","Practice spells","Teach a spell"} or {}
       if phase=="lobby" then for i,p in ipairs(peers) do items[i]="Badge "..p.id:sub(-4) end end
       if phase=="train_select" then for i=1,3 do items[i]=spells[i]..(#models[i]>0 and " [learned]" or " [preset]") end end
       for i,t in ipairs(items) do body=body..(i==selected and "> " or "  ")..t.."\n" end
@@ -389,12 +387,6 @@ local function render(now)
       body="FIREBALL: push, then stop\nSHIELD: tilt up and hold\nRECHARGE: side to side\n\nUse Teach for personal gestures."
       hint="Preset accuracy is unmeasured.\nNo opponent or radio required."
       footer=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A > move > release   B back"
-    elseif phase=="diag" then
-      local stats=badge.sys.stats()
-      body=(sensor_x and string.format("Accel: %d %d %d mg",round(sensor_x),round(sensor_y),round(sensor_z)) or "Sensor unavailable")..
-        string.format("\nReads %d / changed %d\nChanges/s %d (not Hz)\nLua %d/%d; peak %d\nWidgets %d / radio drops %d",reads,changes,floor(changes*1000/max(1,now-diag_since)),stats.lua_used,stats.lua_limit,stats.lua_peak,stats.widgets,badge.radio.dropped())
-      hint="Changed readings are not sample Hz.\nA logs stats to the IDE console."
-      footer="A log stats   B back"
     end
     text("body",body)
   end
@@ -459,8 +451,7 @@ function on_enter(root)
   if not loaded then loaded=decode_models(badge.fs.read("appdata/gest"..(1-slot)..".dat"));if loaded then slot=1-slot end end
   if loaded then models=loaded end
   -- Leave Bluetooth off until Find a duel; Practice/Teach need no radio.
-  diag_since=clock()
-  badge.sys.log("Spellbound 0.2.0 | firmware "..tostring(badge.sys.version()))
+  badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
   render(clock());leds(clock())
 end
 function on_tick()
@@ -470,16 +461,7 @@ function on_tick()
     if now-capture.start>MAX_CAPTURE then capture_finish(now,true)
     else capture_sample(now);if not badge.input.is_down(badge.input.BUTTON.A) then capture_finish(now,false) end end
   end
-  if phase=="diag" and now-last_sample_at>=20 then
-    last_sample_at=now
-    local x,y,z=read_accel()
-    if x then
-      reads=reads+1
-      if x~=sensor_x or y~=sensor_y or z~=sensor_z then changes=changes+1 end
-      sensor_x,sensor_y,sensor_z=x,y,z
-    else sensor_x,sensor_y,sensor_z=nil,nil,nil end
-  end
-  if now>=next_ui then render(now);next_ui=now+(phase=="diag" and 500 or 100) end
+  if now>=next_ui then render(now);next_ui=now+100 end
   if now>=next_led then leds(now);next_led=now+70 end
   if now>=next_gc then badge.sys.gc_step();next_gc=now+250 end
 end
@@ -511,8 +493,8 @@ function on_button(button,kind)
     return
   end
   if phase=="home" then
-    if button==B.UP then selected=(selected+2)%4+1
-    elseif button==B.DOWN then selected=selected%4+1
+    if button==B.UP then selected=(selected+1)%3+1
+    elseif button==B.DOWN then selected=selected%3+1
     elseif button==B.A then
       if selected==1 then
         if not radio_started then
@@ -524,8 +506,7 @@ function on_button(button,kind)
         if radio_ok then phase,peers,selected,next_tx="lobby",{},1,0
         else message("Radio unavailable; HOME then reopen","X") end
       elseif selected==2 then phase="practice"
-      elseif selected==3 then phase,selected="train_select",1
-      else phase="diag";reads,changes,diag_since=0,0,now;sensor_x,sensor_y,sensor_z=nil,nil,nil end
+      else phase,selected="train_select",1 end
     end
   elseif phase=="lobby" then
     if button==B.UP then selected=max(1,selected-1)
@@ -549,10 +530,6 @@ function on_button(button,kind)
     if buttons then
       if button==B.LEFT then submit(1) elseif button==B.UP then submit(2) elseif button==B.RIGHT then submit(3) end
     elseif button==B.A and not capture then capture_start(now) end
-  elseif phase=="diag" and button==B.A then
-    local s=badge.sys.stats()
-    badge.sys.log("firmware="..badge.sys.version().." lua="..s.lua_used.."/"..s.lua_limit.." peak="..s.lua_peak.." widgets="..s.widgets.." free="..s.free_heap)
-    message("Stats logged to the IDE console")
   elseif phase=="result" and button==B.A then reset_home() end
 end
 function on_exit()
