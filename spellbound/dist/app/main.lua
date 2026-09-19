@@ -78,15 +78,18 @@ end
 local label,ui_create
 local raw_sample,signature,distance,recognize
 local new_match,apply,advance,pack_state,unpack_state
--- Load modules after the main chunk returns, so compiler temporaries can be freed.
+-- Load modules after the main chunk returns, before native UI allocation raises the baseline.
 local function load_components()
-  -- Construction is one-shot; release its code before loading game modules.
-  ui_create,label=nil,nil
   badge.sys.gc_step()
   local g=require("gesture")
   raw_sample,signature,distance,recognize=g.raw_sample,g.signature,g.distance,g.recognize
+  if package and package.loaded then package.loaded["gesture"]=nil end
+  g=nil
   badge.sys.gc_step()
-  local e=require("engine");new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
+  local e=require("engine")
+  new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
+  if package and package.loaded then package.loaded["engine"]=nil end
+  e=nil
   badge.sys.gc_step()
 end
 local function send_state(now)
@@ -412,8 +415,12 @@ local function leds(now)
 end
 
 function on_enter(root)
-  ui_create(root)
+  -- Compile/load support modules while the Lua baseline is still as small as possible.
   load_components()
+  ui_create(root)
+  -- UI construction is one-shot; release the constructor closures before normal play.
+  ui_create,label=nil,nil
+  badge.sys.gc_step()
   me=mac_key(badge.radio.mac()) or "000000000000"
   -- Leave Bluetooth off until Find a duel; Teach needs no radio.
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
