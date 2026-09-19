@@ -95,7 +95,7 @@ local function recognize(sig, model)
   return nil,"Fizzle - no clear match",d
 end
 
-return {raw_sample=raw_sample,signature=signature,distance=distance,recognize=recognize,preset=preset}
+return raw_sample,signature,distance,recognize
 end
 local function __load_engine()
 local min,max=math.min,math.max
@@ -152,7 +152,7 @@ local function unpack_state(s,now)
   return g
 end
 
-return {new_match=new_match,apply=apply,advance=advance,pack=pack_state,unpack=unpack_state}
+return new_match,apply,advance,pack_state,unpack_state
 end
 local function __load_codec()
 local floor=math.floor
@@ -185,13 +185,14 @@ local function decode_models(s)
   return result
 end
 
-return {encode=encode_models,decode=decode_models}
+return encode_models,decode_models
 end
 
 local floor, min, max, abs = math.floor, math.min, math.max, math.abs
 local MAX_CAPTURE=2400
 local spells = {"Fireball", "Shield", "Recharge"}
 local codes = {"F", "S", "R"}
+local reject_messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"}
 local phase, selected, role = "home", 1, nil
 local me, peer, sid, radio_ok = "", nil, nil, false
 local peers, invite, match, pending, view = {}, nil, nil, nil, nil
@@ -208,7 +209,7 @@ local led_rows={1,1,2,3,3,2}
 local light_levels={0,64,160,255}
 local radio_started=false
 local widgets, text_cache, visible_phase = {}, {}, nil
-local last_sample_at = 0
+local last_sample_at, next_gc = 0, 0
 local stats_dirty, slot, locally_ended = false, 0, false
 
 local function clamp(v,a,b) return min(b,max(a,v)) end
@@ -245,15 +246,12 @@ local new_match,apply,advance,pack_state,unpack_state
 local function load_components()
   ui_create,label=nil,nil
   badge.sys.gc_step()
-  local g=__load_gesture();__load_gesture=nil
-  raw_sample,signature,distance,recognize=g.raw_sample,g.signature,g.distance,g.recognize
-  g=nil;badge.sys.gc_step()
-  local e=__load_engine();__load_engine=nil
-  new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
-  e=nil;badge.sys.gc_step()
-  local c=__load_codec();__load_codec=nil
-  encode_models,decode_models=c.encode,c.decode
-  c=nil;badge.sys.gc_step()
+  raw_sample,signature,distance,recognize=__load_gesture();__load_gesture=nil
+  badge.sys.gc_step()
+  new_match,apply,advance,pack_state,unpack_state=__load_engine();__load_engine=nil
+  badge.sys.gc_step()
+  encode_models,decode_models=__load_codec();__load_codec=nil
+  badge.sys.gc_step()
 end
 local function save_models(model)
   local next_slot=1-slot
@@ -275,9 +273,8 @@ local function send_state(now)
   last_state_tx=now
 end
 local function feedback(code,spell)
-  local messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"}
   if code==0 then message(spell==4 and "You surrendered" or (spells[spell].." cast"),spell==4 and nil or codes[spell])
-  else message(messages[code] or "Action rejected","X") end
+  else message(reject_messages[code] or "Action rejected","X") end
 end
 local function submit(spell)
   if phase=="practice" then message(spells[spell]..(buttons and " test cast" or " recognized"),codes[spell]);return end
@@ -578,7 +575,9 @@ local function leds(now)
   elseif capture then mode="C"
   elseif phase=="duel" and g and g.incoming[own]>now then mode=g.shield[own]>=g.incoming[own] and "S" or "I"
   elseif mode=="" and phase=="duel" and g and g.shield[own]>now then mode="S" end
-  local wave=0.4+0.3*(1-math.cos(now*math.pi/1200))
+  local pulse=(now%2400)/1200
+  if pulse>1 then pulse=2-pulse end
+  local wave=0.4+0.6*pulse
   local sweep=floor(now/170)%3+1
   local chase=floor(now/150)%6+1
   for i=1,6 do
@@ -635,8 +634,8 @@ function on_tick()
     else sensor_x,sensor_y,sensor_z=nil,nil,nil end
   end
   if now>=next_ui then render(now);next_ui=now+(phase=="diag" and 500 or 100) end
-  if now>=next_led then leds(now);next_led=now+50 end
-  badge.sys.gc_step()
+  if now>=next_led then leds(now);next_led=now+70 end
+  if now>=next_gc then badge.sys.gc_step();next_gc=now+250 end
 end
 function on_button(button,kind)
   local B,K=badge.input.BUTTON,badge.input.KIND
