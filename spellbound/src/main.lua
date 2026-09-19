@@ -417,7 +417,7 @@ function on_enter(root)
   load_components()
   me=mac_key(badge.radio.mac()) or "000000000000"
   buttons=badge.store.get_int("buttons",0)==1
-  -- Leave Bluetooth off until Find a duel; Practice/Teach need no radio.
+  -- Leave Bluetooth off until Find a duel; Teach needs no radio.
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
   render(clock());leds(clock())
 end
