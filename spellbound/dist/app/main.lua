@@ -2,7 +2,18 @@
 local app
 local function get_app()
   if app then return app end
-  app=require("app")
+  local loaded=require("app")
+  local candidate=type(loaded)=="table" and loaded or SPELLBOUND_APP
+  if type(candidate)~="table" or type(candidate.enter)~="function"
+    or type(candidate.tick)~="function" or type(candidate.button)~="function"
+    or type(candidate.exit)~="function" then
+    error("app.lua export missing/corrupt (require returned "..type(loaded)..")")
+  end
+  if type(loaded)~="table" then
+    badge.sys.log("Spellbound app export fallback: require returned "..type(loaded))
+  end
+  app=candidate
+  SPELLBOUND_APP=nil
   if package and package.loaded then package.loaded["app"]=nil end
   badge.sys.gc_step()
   return app
