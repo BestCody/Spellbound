@@ -12,7 +12,7 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. Startup loads only the coordinator/core/UI path; `network.lua` is loaded on **Find a duel**, `casting.lua` on **Teach** or first duel capture, `gesture.lua` on first motion capture, and `engine.lua` when a match first needs game-state logic.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The UI uses only nine native widgets, and heavy features are split into sub-4 KiB lazy Lua chunks with garbage-collection steps between loads.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
@@ -24,6 +24,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 - Button-delimited accelerometer capture; segmented, amplitude-normalized derivative templates; banded DTW; adaptive per-spell thresholds; and relative ambiguity rejection.
 - Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
+- Nine-widget low-memory UI; mana remains visible as text while HP keeps native bars.
 - Simplified six-LED spell/damage/victory effects.
 - Tests, reproducible builds, GitHub Actions configuration, and safe new-repository publishing scripts.
 
@@ -63,11 +64,16 @@ src/main.lua          Tiny lifecycle bootstrap
 src/app.lua           Coordinator and lazy feature loader
 src/core.lua          Shared state and low-cost helpers
 src/ui.lua            UI creation, rendering, and LEDs
-src/network.lua       Discovery, handshake, reliability, synchronization
-src/casting.lua       Motion capture and training flow
-src/gesture.lua       Motion resampling and trained-template classifier
+src/network.lua       Radio coordinator
+src/net_rx.lua        Packet receive/handshake state machine
+src/net_tick.lua      Discovery/retry/match tick
+src/casting.lua       Motion capture coordinator
+src/training.lua      Teaching, adaptive thresholds, diagnostics
+src/gesture.lua       Small recognizer loader
+src/gesture_sig.lua   Segmentation + normalized derivative signatures
+src/gesture_dtw.lua   Banded DTW + classification
 src/engine.lua        Deterministic game rules and compact state encoding
-dist/app/             Nine-file lazy modular physical/runtime package
+dist/app/             14-file low-memory modular runtime package
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)

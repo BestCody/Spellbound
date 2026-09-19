@@ -7,7 +7,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "casting.lua", "gesture.lua", "engine.lua")
+RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua")
+LAZY_FILES = {"network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua"}
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
 
@@ -56,13 +57,17 @@ def build(check: bool = False) -> None:
             raise ValueError(f"{name} exceeds 64 KiB")
         if name == "main.lua" and len(code.encode()) > 2 * 1024:
             raise ValueError("main.lua must remain a tiny bootstrap under 2 KiB")
+        if name in LAZY_FILES and len(code.encode()) > 4 * 1024:
+            raise ValueError(f"{name} exceeds 4 KiB lazy-module compile budget")
         output[ROOT / "dist" / "app" / name] = code.encode()
     output[ROOT / "dist" / "app" / "manifest.cfg"] = manifest.encode()
 
     runtime_total = sum(len(output[ROOT / "dist" / "app" / name])
                         for name in RUNTIME_FILES) + len(manifest.encode())
     if runtime_total >= 48 * 1024:
-        raise ValueError("Modular app exceeds documented Share bundle limit")
+        raise ValueError("Modular app exceeds documented 48 KiB Share bundle limit")
+    if len(RUNTIME_FILES) + 1 > 16:
+        raise ValueError("Modular app exceeds documented 16-file Share bundle limit")
 
     report = {
         "version": next((line.split("=", 1)[1] for line in manifest.splitlines()

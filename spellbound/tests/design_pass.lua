@@ -50,11 +50,11 @@ test("fallback spell buttons are disabled",function()
  assert(a:state().match.mana[1]==mana)
  assert(not has(a,"LEFT fire"))
 end)
-test("unchanged duel vitals do not rewrite the four bars",function()
+test("unchanged duel vitals avoid full repaint",function()
  local a,b,step=pair();step(100)
  local n=a.ui_writes;a:tick(100)
- -- Progress and projectile visibility still have three cheap native writes.
- assert(a.ui_writes-n<=3,"Unexpected full repaint")
+ -- Only the reusable recording progress widget visibility is touched.
+ assert(a.ui_writes-n<=1,"Unexpected full repaint")
 end)
 test("LEDs are spell effects, not duplicate health meters",function()
  local a,b,step=pair()
@@ -86,10 +86,10 @@ test("new menu cancels stale result notes and LED effects",function()
  assert(a:state().phase=="home" and a:state().note=="")
  for i=1,6 do assert(light(a,i)==0,"Idle LEDs should be off") end
 end)
-test("all widget bounds remain within 320x240",function()
+test("low-memory UI uses nine bounded widgets",function()
  local a,b,step=pair();a.api.submit(1);step(400)
  for _,c in ipairs({a,b}) do
-  assert(#c.widgets==18)
+  assert(#c.widgets==9)
   for _,w in ipairs(c.widgets) do assert(w.x>=0 and w.y>=0 and w.x+w.w<=320 and w.y+w.h<=240) end
  end
 end)
