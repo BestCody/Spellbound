@@ -1,4 +1,6 @@
 -- Spellbound coordinator with UI-suspended feature preloading.
+local APP={}
+SPELLBOUND_APP=APP
 local S=require("core")
 if package and package.loaded then package.loaded["core"]=nil end
 badge.sys.gc_step()
@@ -132,4 +134,5 @@ local function test_api()
       models=S.models,thresholds=S.thresholds,training=S.training,capture=S.capture,
       peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}
 end
-return {enter=enter,tick=tick,button=button,exit=exit,test_api=test_api}
+APP.enter,APP.tick,APP.button,APP.exit,APP.test_api=enter,tick,button,exit,test_api
+return APP
