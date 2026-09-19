@@ -8,10 +8,9 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("main.lua", "gesture.lua", "engine.lua", "model_codec.lua")
+RUNTIME_FILES = ("main.lua", "gesture.lua", "engine.lua")
 MODULES = (("gesture", "gesture.lua", ("raw_sample", "signature", "distance", "recognize")),
-           ("engine", "engine.lua", ("new_match", "apply", "advance", "pack_state", "unpack_state")),
-           ("codec", "model_codec.lua", ("encode_models", "decode_models")))
+           ("engine", "engine.lua", ("new_match", "apply", "advance", "pack_state", "unpack_state")))
 
 
 def validate_manifest(text: str) -> None:
@@ -63,11 +62,9 @@ def make_standalone(manifest: str, sources: dict[str, str]) -> str:
   badge.sys.gc_step()
   new_match,apply,advance,pack_state,unpack_state=__load_engine();__load_engine=nil
   badge.sys.gc_step()
-  encode_models,decode_models=__load_codec();__load_codec=nil
-  badge.sys.gc_step()
 end
-local function save_models"""
-    pattern = re.compile(r"local function load_components\(\).*?\nend\nlocal function save_models", re.S)
+local function send_state"""
+    pattern = re.compile(r"local function load_components\(\).*?\nend\nlocal function send_state", re.S)
     main, count = pattern.subn(replacement, main, count=1)
     if count != 1:
         raise ValueError("Could not replace modular load_components()")
@@ -117,7 +114,7 @@ def build(check: bool = False) -> None:
     report = {
         "version": next((line.split("=", 1)[1] for line in manifest.splitlines()
                          if line.startswith("version=")), "unknown"),
-        "runtime_files": 5,
+        "runtime_files": 4,
         "runtime_bytes": runtime_total,
         "standalone_import": True,
         "standalone_bytes": len(standalone.encode()),

@@ -23,8 +23,8 @@ Readable modular source remains under `src/`, and `tools/build.py` reproducibly 
 - Sequenced commands, duplicate suppression, state snapshots, acknowledgement retries, and disconnect cancellation.
 - Button-delimited accelerometer capture; compact resampled templates; confidence and ambiguity rejection.
 - Three conservative preset gesture rules; personalized training with three examples and a fourth validation attempt.
-- Checked, two-slot local saves, with fallback when the active save is corrupt.
-- Practice, a clearly labelled button-control mode, on-screen projectiles, and six-LED effects.
+- Taught gestures are session-only: reopening the app starts with fresh gesture models.
+- A clearly labelled button-control mode and simplified six-LED spell/damage/victory effects.
 - Tests, reproducible builds, GitHub Actions configuration, and safe new-repository publishing scripts.
 
 ## Controls
@@ -34,10 +34,9 @@ Readable modular source remains under `src/`, and `tools/build.py` reproducibly 
 | Menus | UP/DOWN select; A opens; B returns |
 | Motion casting | Hold A, move, release; aim for 0.3–2.4 seconds and a consistent starting pose |
 | Button-control mode | LEFT Fireball; UP Shield; RIGHT Recharge |
-| Switch control mode | START in the home menu, practice, or a duel; the footer shows the active mode |
+| Switch control mode | START on the home menu or during a duel; the footer shows the active mode |
 | Surrender | Press B twice within 1.8 seconds during a duel |
-| Teach | Select a spell; record three similar examples, then one fresh validation repetition; B cancels |
-| LED brightness | AUX1 on the home menu cycles OFF/64/160/255; new-install default 160 |
+| Teach | Select a spell; record three similar examples, then one fresh validation repetition; learned gestures last for the current app session |
 | Exit | HOME; settings are saved and LEDs/radio are cleaned up |
 
 Use controlled handheld movements. Do not swing a badge by its lanyard. A rejected gesture consumes no mana and sends no cast. Accepted gestures can still be rejected by the host for insufficient mana or a cooldown.
@@ -56,7 +55,7 @@ These are editable design defaults in `src/engine.lua`, not tournament-tested ba
 
 ## First demo
 
-On both badges, open **Find a duel**. One person selects the other badge's short address code and presses A. The other accepts with A. First test the duel in button mode; then return to motion mode and use Practice/Teach to calibrate recognizable movements. Teach a distinct custom gesture, start another duel, and demonstrate it.
+On both badges, open **Find a duel**. One person selects the other badge's short address code and presses A. The other accepts with A. First test the duel in button mode. Then teach distinct custom gestures, switch back to motion mode, and demonstrate them in the duel.
 
 ## Repository map
 
@@ -65,8 +64,7 @@ manifest.cfg                 Runtime settings: API 2, 96 KiB, foreground wake lo
 src/main.lua                 Lifecycle, UI, pairing/radio, capture, training flow
 src/gesture.lua              Motion resampling, default rules, template classifier
 src/engine.lua               Deterministic game rules and compact state encoding
-src/model_codec.lua          Bounded binary model format and corruption detection
-dist/app/                    The five files to install on each badge
+dist/app/                    Modular development/runtime copies
 dist/Spellbound-install.lua  Complete one-file Badge IDE import; no extra modules
 dist/Badge-check.lua         Optional standalone sensor/radio diagnostic
 tests/                       Strict API mock and real-Lua automated tests
@@ -103,7 +101,7 @@ This creates a **public** `spellbound` repository under the account authenticate
 
 ## Limits and provenance
 
-This is a friendly local game, not an authenticated or encrypted competitive protocol. MAC addresses and random match IDs prevent accidental cross-talk, not determined spoofing. Raw movement recordings and learned templates stay on the badge; personal badge IDs and names are not broadcast by the app.
+This is a friendly local game, not an authenticated or encrypted competitive protocol. MAC addresses and random match IDs prevent accidental cross-talk, not determined spoofing. Raw movement recordings and learned templates stay only in the current app session; personal badge IDs and names are not broadcast by the app.
 
 GesturePod inspired the interaction concept. This repository contains **original Lua code and no copied GesturePod/EdgeML implementation or pretrained model**. The recognizer is a small template classifier, not a neural network. See [docs/SOURCES.md](docs/SOURCES.md) for API references, and [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) for the remaining physical validation.
 
