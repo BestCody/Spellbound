@@ -29,7 +29,7 @@ return function(S,root)
     b:style({bg_color=i>2 and 0x69C9C4 or (i==1 and 0xC3A0FF or 0xF0CA73)},"indicator")
     W["bar"..i]=b
   end
-  local p=badge.ui.bar(bg,0,2400,0);p:set_pos(12,173);p:set_size(296,4)
+  local p=badge.ui.bar(bg,0,S.MAX_CAPTURE,0);p:set_pos(12,173);p:set_size(296,4)
   p:style({bg_color=0x30263F});p:style({bg_color=0xE8C573},"indicator");W.progress=p
   for i=1,2 do
     local o=badge.ui.box(bg,9,9);o:style({bg_color=0xFF924E,border_width=0,radius=4});W["orb"..i]=o
@@ -92,7 +92,7 @@ return function(S,root)
       text("body",body)
     end
     text("hint",shown~="" and shown or hint);text("footer",S.capture and "Recording... release A" or footer)
-    W.progress:hidden(not S.capture);if S.capture then W.progress:set_value(S.clamp(now-S.capture.start,0,2400)) end
+    W.progress:hidden(not S.capture);if S.capture then W.progress:set_value(S.clamp(now-S.capture.start,0,S.MAX_CAPTURE)) end
     for i=1,2 do
       local active=S.phase=="duel" and g and g.incoming[i]>now
       W["orb"..i]:hidden(not active)
