@@ -31,6 +31,7 @@ local floor, min, max, abs = math.floor, math.min, math.max, math.abs
 local MAX_CAPTURE=2400
 local spells = {"Fireball", "Shield", "Recharge"}
 local codes = {"F", "S", "R"}
+local reject_messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"}
 local phase, selected, role = "home", 1, nil
 local me, peer, sid, radio_ok = "", nil, nil, false
 local peers, invite, match, pending, view = {}, nil, nil, nil, nil
@@ -47,7 +48,7 @@ local led_rows={1,1,2,3,3,2}
 local light_levels={0,64,160,255}
 local radio_started=false
 local widgets, text_cache, visible_phase = {}, {}, nil
-local last_sample_at = 0
+local last_sample_at, next_gc = 0, 0
 local stats_dirty, slot, locally_ended = false, 0, false
 
 local function clamp(v,a,b) return min(b,max(a,v)) end
@@ -114,9 +115,8 @@ local function send_state(now)
   last_state_tx=now
 end
 local function feedback(code,spell)
-  local messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"}
   if code==0 then message(spell==4 and "You surrendered" or (spells[spell].." cast"),spell==4 and nil or codes[spell])
-  else message(messages[code] or "Action rejected","X") end
+  else message(reject_messages[code] or "Action rejected","X") end
 end
 local function submit(spell)
   if phase=="practice" then message(spells[spell]..(buttons and " test cast" or " recognized"),codes[spell]);return end
@@ -234,7 +234,7 @@ local function network_tick(now)
       if match.hp[1]<hp then effect,effect_until="D",now+700
       elseif attack>0 and match.incoming[1]==0 and match.result==0 then effect,effect_until="B",now+700 end
       if match.result~=0 then phase,capture="result",nil end
-      if now-last_state_tx>=200 then send_state(now) end
+      if now-last_state_tx>=300 then send_state(now) end
     elseif role=="guest" then
       if now-last_ping>=750 then transmit("P");last_ping=now end
       if pending and now>=pending.next then
@@ -420,7 +420,9 @@ local function leds(now)
   elseif capture then mode="C"
   elseif phase=="duel" and g and g.incoming[own]>now then mode=g.shield[own]>=g.incoming[own] and "S" or "I"
   elseif mode=="" and phase=="duel" and g and g.shield[own]>now then mode="S" end
-  local wave=0.4+0.3*(1-math.cos(now*math.pi/1200))
+  local pulse=(now%2400)/1200
+  if pulse>1 then pulse=2-pulse end
+  local wave=0.4+0.6*pulse
   local sweep=floor(now/170)%3+1
   local chase=floor(now/150)%6+1
   for i=1,6 do
@@ -478,8 +480,8 @@ function on_tick()
     else sensor_x,sensor_y,sensor_z=nil,nil,nil end
   end
   if now>=next_ui then render(now);next_ui=now+(phase=="diag" and 500 or 100) end
-  if now>=next_led then leds(now);next_led=now+50 end
-  badge.sys.gc_step()
+  if now>=next_led then leds(now);next_led=now+70 end
+  if now>=next_gc then badge.sys.gc_step();next_gc=now+250 end
 end
 function on_button(button,kind)
   local B,K=badge.input.BUTTON,badge.input.KIND
@@ -556,7 +558,7 @@ end
 function on_exit()
   if sid then transmit("Q") end
   if stats_dirty then badge.store.set_int("buttons",buttons and 1 or 0);badge.store.set_int("brightness",brightness) end
-  badge.radio.on_recv(nil);badge.radio.disable()
+  if radio_started then badge.radio.on_recv(nil);badge.radio.disable() end
   badge.led.clear();badge.led.show()
 end
 
