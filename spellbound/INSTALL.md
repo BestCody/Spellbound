@@ -14,6 +14,8 @@ dist/app/
 ├── network.lua
 ├── net_rx.lua
 ├── net_tick.lua
+├── net_buttons.lua
+├── effects.lua
 ├── casting.lua
 ├── training.lua
 ├── gesture_sig.lua
@@ -34,10 +36,10 @@ the gesture recognizer and duel engine as separate modules.
    `dist/app/main.lua`.
 5. In the editor's **Files** panel, use **+** to add each support module:
    `app.lua`, `core.lua`, `ui.lua`, `network.lua`, `net_rx.lua`,
-   `net_tick.lua`, `casting.lua`, `training.lua`, `gesture_sig.lua`,
+   `net_tick.lua`, `net_buttons.lua`, `effects.lua`, `casting.lua`, `training.lua`, `gesture_sig.lua`,
    `gesture_dtw.lua`, and `engine.lua`.
 6. Paste the matching file from `dist/app/` into each editor file.
-7. Verify exactly **12 Lua files plus `manifest.cfg`** are present under the
+7. Verify exactly **14 Lua files plus `manifest.cfg`** are present under the
    same app. Remove editor-only extras such as `README.md`; do not add
    `build-info.json` or `Badge-check.lua` to Spellbound.
 8. Do **not** use **Import app** for support modules. Import app replaces the
@@ -46,7 +48,7 @@ the gesture recognizer and duel engine as separate modules.
 The production `main.lua` is intentionally under 1 KiB. It loads only
 `app.lua`. Runtime features are split into micro-modules so every lazy-loaded
 Lua source chunk stays at or below 4 KiB. On the first Teach/Find-a-duel entry,
-the five-widget UI is deleted before those modules compile. The badge's
+the three-widget UI is deleted before those modules compile. The badge's
 sandboxed `require()` cache cannot be cleared, so the recognizer is loaded in
 memory-safe order: `gesture_sig.lua` first, then the smaller capture,
 DTW/classifier, and training chunks.
@@ -69,7 +71,7 @@ Repeat the same editor setup/push process for the second badge.
 The first goal is to determine whether modular compilation fixes startup memory:
 
 1. Reboot, run `heap`, then open Spellbound.
-2. Run `heap` again and confirm the five-widget home screen launches.
+2. Run `heap` again and confirm the three-widget home screen launches.
 3. Enter **Teach a spell** once and capture every `MEM teach-...` line.
 4. Train Fireball, Shield, and Recharge.
 5. Return home, open **Find a duel**, and capture every `MEM duel-...` line.
@@ -94,6 +96,8 @@ src/ui.lua
 src/network.lua
 src/net_rx.lua
 src/net_tick.lua
+src/net_buttons.lua
+src/effects.lua
 src/casting.lua
 src/training.lua
 src/gesture_sig.lua
