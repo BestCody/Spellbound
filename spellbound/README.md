@@ -21,7 +21,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 - Explicit opponent discovery, invitation, accept/decline, and retrying pairing handshake.
 - Host-authoritative health, mana, cooldowns, shields, delayed attacks, surrender, wins, and draws.
 - Sequenced commands, duplicate suppression, state snapshots, acknowledgement retries, and disconnect cancellation.
-- Button-delimited accelerometer capture; compact resampled templates; confidence and ambiguity rejection.
+- Button-delimited accelerometer capture; path-distance-normalized 48-byte templates that tolerate pauses/speed changes; confidence and ambiguity rejection.
 - Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
 - Simplified six-LED spell/damage/victory effects.
@@ -32,7 +32,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 | Context | Controls |
 |---|---|
 | Menus | UP/DOWN select; A opens; B returns |
-| Motion casting | Hold A, move, release; aim for 0.3–2.4 seconds and a consistent starting pose |
+| Motion casting | Hold A, move, release; use a deliberate 0.25–3.0 second window. Short waits and speed changes are normalized out; keep a reasonably consistent starting pose. |
 | Surrender | Press B twice within 1.8 seconds during a duel |
 | Teach | Select a spell; record three similar examples, then one fresh validation repetition; learned gestures last for the current app session |
 | Exit | HOME; LEDs/radio are cleaned up |
