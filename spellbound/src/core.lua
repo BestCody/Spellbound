@@ -1,7 +1,7 @@
 -- Shared Spellbound state and low-cost helpers.
 local min,max,floor=math.min,math.max,math.floor
 local S={
-  MAX_CAPTURE=2400, LED=160,
+  MAX_CAPTURE=3000, LED=160,
   spells={"Fireball","Shield","Recharge"}, codes={"F","S","R"},
   reject_messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"},
   phase="home", selected=1, role=nil, me="", peer=nil, sid=nil, radio_ok=false,

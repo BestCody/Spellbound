@@ -14,6 +14,15 @@ local function raw(api,fn,duration)
  for t=0,duration,20 do out[#out+1]=api.raw_sample(t,fn(t/duration)) end
  return table.concat(out)
 end
+local function raw_window(api,fn,pre,motion,post)
+ local out,total={},pre+motion+post
+ for t=0,total,20 do
+  local u
+  if t<=pre then u=0 elseif t>=pre+motion then u=1 else u=(t-pre)/motion end
+  out[#out+1]=api.raw_sample(t,fn(u))
+ end
+ return table.concat(out)
+end
 local function setup_pair(opts)
  opts=opts or {}
  local a=Mock.new({mac="AA:00:00:00:00:01"})
@@ -70,6 +79,24 @@ end)
 test("stationary movement rejected",function()
  local b=Mock.new();local sig=b.api.signature(raw(b.api,function() return 0,0,1000 end,1000));eq(sig,nil)
 end)
+test("small stationary jitter is ignored",function()
+ local a=Mock.new().api
+ local out={}
+ for t=0,1200,20 do out[#out+1]=a.raw_sample(t,(t/20)%2==0 and 30 or -30,0,1000) end
+ eq(a.signature(table.concat(out)),nil)
+end)
+test("gesture signature tolerates delayed start and late release",function()
+ local a=Mock.new().api
+ local base=assert(a.signature(raw(a,fire,1000)))
+ local delayed=assert(a.signature(raw_window(a,fire,400,1000,500)))
+ assert(a.distance(base,delayed)<0.12,"delay should not substantially change gesture shape")
+end)
+test("gesture signature tolerates faster and slower execution",function()
+ local a=Mock.new().api
+ local fast=assert(a.signature(raw(a,shield,600)))
+ local slow=assert(a.signature(raw(a,shield,1800)))
+ assert(a.distance(fast,slow)<0.16,"speed should not substantially change gesture shape")
+end)
 test("short movement rejected",function()
  local b=Mock.new();eq(b.api.signature(raw(b.api,fire,100)),nil)
 end)
@@ -100,7 +127,7 @@ test("taught gestures are session-only",function()
  local c=Mock.new({files=b.files,store=b.store});eq(#c:state().models[1],0)
 end)
 test("overlong recording rejected",function()
- local b=Mock.new();b:tap("DOWN");b:tap("A");b:tap("A");b:record(fire,2600)
+ local b=Mock.new();b:tap("DOWN");b:tap("A");b:tap("A");b:record(fire,3200)
  eq(b:state().capture,nil);assert(b:state().note:find("too long"))
 end)
 test("fire damage delayed and applies once",function()
