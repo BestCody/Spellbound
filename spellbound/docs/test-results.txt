@@ -1,6 +1,3 @@
-Spellbound desktop verification - 2026-09-19
-Lua 5.4 shared-library runner
-
 PASS strict documented API boot + 20-widget UI
 PASS exit clears LEDs and disables radio
 PASS radio failure keeps practice available
@@ -49,6 +46,29 @@ PASS declined invitation is not immediately shown again
 PASS host cancellation closes an unaccepted invitation
 
 46 passed, 0 failed
+PASS home, practice and teach leave Bluetooth off
+PASS Find a duel enables radio once per foreground session
+PASS failed radio startup leaves practice usable
+PASS all four brightness levels include fully off
+PASS off persists across HOME and reopening
+PASS idle has no flash writes or diagnostic sensor polling
+PASS one LED latch per scheduled frame, no catch-up burst
+PASS notifications do not erase physical-button controls
+PASS unchanged duel vitals do not rewrite the four bars
+PASS physical left LEDs 1/6/5 encode local health
+PASS incoming warning stays visible while recording
+PASS shielded incoming attack has distinct ready and blocked feedback
+PASS pending guest action is not presented as a confirmed cast
+PASS diagnostics distinguish changed values and log only on A
+PASS new menu cancels stale result notes and LED effects
+PASS all widget bounds remain within 320x240
+
+16 design tests passed, 0 failed
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.000s
+
+OK
 PASS packaged production boot, controls, training, persistence, cleanup
 PASS standalone hardware checker mock transmit/receive and cleanup
-Verified 31,504 bytes across five runtime files.
+Verified 34,114 bytes across five runtime files.

@@ -31,3 +31,12 @@ Record both badges' firmware versions, the time of the check, and the observed r
 Start with a successful button-mode duel, switch to motion, then demonstrate a newly taught gesture. Do not present synthetic fixture pass rates as recognition accuracy. Explain that countdown visuals are approximate and host-authoritative, not perfectly synchronized.
 
 Keep a copy of the prebuilt app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
+
+## Design pass 0.2.0 acceptance
+
+- On a fresh app launch, check Home/Practice/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify discovery/acceptance.
+- Check OFF/64/160/255 LED brightness, physical left/right health mapping, recording progress pairs, shield/block feedback, and HOME cleanup. Confirm OFF survives a normal exit/reopen.
+- Confirm notifications do not hide the bottom controls, incoming warnings remain visible during capture, and a protected attack shows the shield-ready state.
+- Check long messages and Diagnostics for native-font wrapping/clipping. The desktop preview is not LVGL.
+- Press A in Diagnostics; capture its one-shot log and pre-launch `heap` output when relevant. Distinguish Lua usage from free system heap and observed changes/s from sensor Hz.
+- The desktop cap probe is close to its limit and does not exercise full runtime allocation. Measure after opening radio, loading/training all three gestures, and repeated duels. Treat failure as a reason to simplify the app, not raise the quota beyond 96 or delete unrelated inactive apps.

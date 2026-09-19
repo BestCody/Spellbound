@@ -6,6 +6,10 @@ Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. T
 
 **Implementation status:** complete source and desktop tests are included. This version has **not been uploaded to or tested on a physical HTN badge**. Preset recognition thresholds are experimental, not measured human-gesture accuracy. Validate motion, memory, rendering, and radio on your two badges before demonstrating it.
 
+## Design pass 0.2.0
+
+The badge-native pass adds clearer health/mana hierarchy, a separate notification area and control footer, shield/pending-command feedback, physically mapped LED effects with an off option, and lazy radio startup. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates. This is still a five-file app.
+
 ## Start here
 
 Use the prebuilt files; building on your computer is optional. Read **[INSTALL.md](INSTALL.md)** for the precise browser-IDE procedure. **This is a five-file app, not a standalone single-file import.** Import `dist/Spellbound-install.lua`, then add the three support modules from `dist/app` before pressing Push.
@@ -33,7 +37,7 @@ The modular layout is intentional: an early monolithic version exceeded a 96 KiB
 | Switch control mode | START in the home menu, practice, or a duel; the footer shows the active mode |
 | Surrender | Press B twice within 1.8 seconds during a duel |
 | Teach | Select a spell; record three similar examples, then one fresh validation repetition; B cancels |
-| LED brightness | AUX1 on the home menu cycles 24/64/128 out of 255 |
+| LED brightness | AUX1 on the home menu cycles OFF/64/160/255; new-install default 160 |
 | Exit | HOME; settings are saved and LEDs/radio are cleaned up |
 
 Use controlled handheld movements. Do not swing a badge by its lanyard. A rejected gesture consumes no mana and sends no cast. Accepted gestures can still be rejected by the host for insufficient mana or a cooldown.
@@ -74,12 +78,14 @@ docs/                        Protocol, recognition, testing, and provenance
 
 ## Develop and test
 
-From the repository root, with Python 3.10+ and Lua 5.3/5.4:
+From the `spellbound/` project directory inside the GitHub checkout, with Python 3.10+ and Lua 5.3/5.4:
 
 ```sh
 python tools/build.py
 lua tests/run.lua
+lua tests/design_pass.lua
 lua tests/install_smoke.lua
+lua tests/checker_smoke.lua
 python tools/build.py --check
 ```
 
@@ -87,7 +93,7 @@ Use `lua5.4` or `texlua` in place of `lua` where appropriate. On Linux, an alter
 
 ## Publish to GitHub
 
-The delivered archive is a local repository snapshot. **It has not been published to GitHub by the code generator.** After installing Git and GitHub CLI and signing in with `gh auth login`, run:
+This project is already in `BestCody/Spellbound`. Do not run the new-repository publishing script when updating this repository. The commands below are only for publishing a separate new repository from an independent copy, with Git and GitHub CLI installed and `gh auth login` completed:
 
 ```powershell
 .\tools\publish.ps1

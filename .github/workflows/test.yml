@@ -1,0 +1,28 @@
+name: Test Spellbound
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  lua:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: spellbound
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Manifest contract tests
+        run: python3 -m unittest discover -s tests -p "test_*.py"
+      - name: Verify generated badge files
+        run: python3 tools/build.py --check
+      - name: Unit and two-badge integration tests
+        run: lua5.4 tests/run.lua
+      - name: Badge-native design regressions
+        run: lua5.4 tests/design_pass.lua
+      - name: Packaged app smoke test
+        run: lua5.4 tests/install_smoke.lua
+      - name: Standalone checker smoke test
+        run: lua5.4 tests/checker_smoke.lua

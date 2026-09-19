@@ -28,7 +28,7 @@ SOFTWARE.
 -- Button mode: LEFT Fireball, UP Shield, RIGHT Recharge. HOME exits.
 -- Source is original; no GesturePod/EdgeML code or model is included.
 local floor, min, max, abs = math.floor, math.min, math.max, math.abs
-local SB = {version="0.1.0", prefix="SB1", max_capture=2400, nodes=16}
+local MAX_CAPTURE=2400
 local spells = {"Fireball", "Shield", "Recharge"}
 local codes = {"F", "S", "R"}
 local phase, selected, role = "home", 1, nil
@@ -40,8 +40,12 @@ local last_rx, next_tx, next_ui, next_led = 0, 0, 0, 0
 local last_state_tx, last_ping, deadline = 0, 0, 0
 local capture, training, models = nil, nil, {{},{},{}}
 local note, note_until, effect, effect_until = "", 0, "", 0
-local buttons, brightness, leave_until = false, 64, 0
-local last_sensor, reads, changes, diag_since = nil, 0, 0, 0
+local buttons, brightness, leave_until = false, 160, 0
+local sensor_x,sensor_y,sensor_z
+local reads,changes,diag_since=0,0,0
+local led_rows={1,1,2,3,3,2}
+local light_levels={0,64,160,255}
+local radio_started=false
 local widgets, text_cache, visible_phase = {}, {}, nil
 local last_sample_at = 0
 local stats_dirty, slot, locally_ended = false, 0, false
@@ -74,15 +78,21 @@ local function split_packet(p)
   return k,s,d
 end
 
-local raw_sample,signature,distance,recognize,preset
+local label,ui_create
+local raw_sample,signature,distance,recognize
 local encode_models,decode_models
 local new_match,apply,advance,pack_state,unpack_state
 -- Load modules after the main chunk returns, so compiler temporaries can be freed.
 local function load_components()
+  -- Construction is one-shot; release its code before loading game modules.
+  ui_create,label=nil,nil
+  badge.sys.gc_step()
   local g=require("gesture")
-  raw_sample,signature,distance,recognize,preset=g.raw_sample,g.signature,g.distance,g.recognize,g.preset
-  local c=require("model_codec");encode_models,decode_models=c.encode,c.decode
+  raw_sample,signature,distance,recognize=g.raw_sample,g.signature,g.distance,g.recognize
+  badge.sys.gc_step()
   local e=require("engine");new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
+  badge.sys.gc_step()
+  local c=require("model_codec");encode_models,decode_models=c.encode,c.decode
 end
 local function save_models(model)
   local next_slot=1-slot
@@ -106,10 +116,10 @@ end
 local function feedback(code,spell)
   local messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"}
   if code==0 then message(spell==4 and "You surrendered" or (spells[spell].." cast"),spell==4 and nil or codes[spell])
-  else message(messages[code] or "Action rejected") end
+  else message(messages[code] or "Action rejected","X") end
 end
 local function submit(spell)
-  if phase=="practice" then message(spells[spell].." recognized",codes[spell]);return end
+  if phase=="practice" then message(spells[spell]..(buttons and " test cast" or " recognized"),codes[spell]);return end
   if phase~="duel" then return end
   local now=clock()
   if role=="host" then feedback(apply(match,1,spell,0,now),spell);send_state(now)
@@ -124,12 +134,14 @@ local function reset_home()
   peer,sid,match,pending,view,invite,capture,training=nil,nil,nil,nil,nil,nil,nil,nil
   seq,revision,last_revision=0,0,-1
   next_tx,leave_until,locally_ended=0,0,false
+  note,note_until,effect,effect_until="",0,"",0
 end
 local function end_link(reason)
   locally_ended=true
   if match then match.result=4 end
   if view then view.result=4 end
   phase,pending,capture="result",nil,nil
+  effect,effect_until="",0
   message(reason,nil,60000)
 end
 
@@ -189,7 +201,10 @@ local function receive(mac,rssi,payload)
     local g=unpack_state(data,now)
     if not g or rev<=last_revision or g.ack>seq then return end
     last_rx,last_revision=now,rev
-    if view and g.hp[2]<view.hp[2] then effect,effect_until="D",now+700 end
+    if view then
+      if g.hp[2]<view.hp[2] then effect,effect_until="D",now+700
+      elseif view.incoming[2]>0 and g.incoming[2]==0 and g.result==0 then effect,effect_until="B",now+700 end
+    end
     view=g
     if pending and g.ack==pending.seq then feedback(g.reply,pending.spell);pending=nil end
     if phase=="joining" then phase="duel" end
@@ -214,9 +229,10 @@ local function network_tick(now)
   elseif phase=="duel" or phase=="result" then
     if phase=="duel" and now-last_rx>6000 then end_link("Link lost - match cancelled");return end
     if role=="host" and match then
-      local hp=match.hp[1]
+      local hp,attack=match.hp[1],match.incoming[1]
       advance(match,now)
-      if match.hp[1]<hp then effect,effect_until="D",now+700 end
+      if match.hp[1]<hp then effect,effect_until="D",now+700
+      elseif attack>0 and match.incoming[1]==0 and match.result==0 then effect,effect_until="B",now+700 end
       if match.result~=0 then phase,capture="result",nil end
       if now-last_state_tx>=200 then send_state(now) end
     elseif role=="guest" then
@@ -230,21 +246,22 @@ local function network_tick(now)
   end
 end
 
-local function capture_start(now)
+local function read_accel()
   local x,y,z=badge.sensor.accel()
-  if type(x)~="number" or type(y)~="number" or type(z)~="number" or x~=x or y~=y or z~=z or max(abs(x),abs(y),abs(z))>4000 then message("Motion sensor unavailable / invalid");return end
+  if type(x)=="number" and type(y)=="number" and type(z)=="number" and x==x and y==y and z==z and max(abs(x),abs(y),abs(z))<=4000 then return x,y,z end
+end
+local function capture_start(now)
+  local x,y,z=read_accel()
+  if not x then message("Motion sensor unavailable / invalid","X");return end
   capture={start=now,last=now,raw=raw_sample(0,x,y,z),bad=false}
   effect=""
 end
 local function capture_sample(now)
   if not capture or now-capture.last<20 then return end
-  local x,y,z=badge.sensor.accel()
-  if type(x)~="number" or type(y)~="number" or type(z)~="number" or x~=x or y~=y or z~=z then
-    capture.bad=true;return
-  end
-  if abs(x)>4000 or abs(y)>4000 or abs(z)>4000 then capture.bad=true end
+  local x,y,z=read_accel()
+  if not x then capture.bad=true;return end
   local elapsed=now-capture.start
-  if elapsed<=SB.max_capture then capture.raw=capture.raw..raw_sample(elapsed,x,y,z) end
+  if elapsed<=MAX_CAPTURE then capture.raw=capture.raw..raw_sample(elapsed,x,y,z) end
   capture.last=now
 end
 local function capture_finish(now,too_long)
@@ -252,9 +269,9 @@ local function capture_finish(now,too_long)
   capture_sample(now)
   local raw,bad=capture.raw,capture.bad
   capture=nil
-  if bad or too_long then message(too_long and "Gesture too long - try again" or "Sensor error / movement too strong");return end
+  if bad or too_long then message(too_long and "Gesture too long - try again" or "Sensor error / movement too strong","X");return end
   local sig,err=signature(raw)
-  if not sig then message(err);return end
+  if not sig then message(err,"X");return end
   if phase=="teach" and training then
     local samples=training.samples
     if #samples<3 then
@@ -274,39 +291,39 @@ local function capture_finish(now,too_long)
     end
   else
     local id,why=recognize(sig,models)
-    if id then submit(id) else message(why) end
+    if id then submit(id) else message(why,"X") end
   end
 end
 
 -- Low-widget-count, asset-free UI. All native positions and sizes are integers.
-local function label(root,key,x,y,w,h,size,color)
+label=function(root,key,x,y,w,h,size,color)
   local obj=badge.ui.label(root,"")
   obj:set_pos(x,y);obj:set_size(w,h)
   obj:style({text_font=size,text_color=color or 0xE8E4F5,pad_all=0})
   widgets[key]=obj
 end
 local function text(key,value)
-  if text_cache[key]~=value then widgets[key]:set_text(value);text_cache[key]=value end
+  if text_cache[key]~=value then widgets[key]:set_text(value);text_cache[key]=value;return true end
 end
-local function ui_create(root)
+ui_create=function(root)
   local bg=badge.ui.box(root,320,240);bg:set_pos(0,0)
   bg:style({bg_color=0x100C20,border_width=0,pad_all=0,radius=0})
   label(bg,"title",12,7,296,27,24,0xC3A0FF)
   label(bg,"status",12,37,296,20,14,0xA49BB8)
-  label(bg,"body",12,63,296,135,18)
-  label(bg,"left",12,62,140,20,16);label(bg,"right",168,62,140,20,16)
-  label(bg,"score1",12,109,140,20,14);label(bg,"score2",168,109,140,20,14)
-  label(bg,"effect",12,141,296,25,20,0xE8C573)
-  label(bg,"hint",12,202,296,18,14,0xB9B2CB)
-  label(bg,"footer",12,221,296,17,14,0x8E839F)
+  label(bg,"body",12,63,296,111,16)
+  label(bg,"left",12,63,140,19,14,0xC3A0FF);label(bg,"right",168,63,140,19,14,0xF0CA73)
+  label(bg,"score1",12,97,140,18,14);label(bg,"score2",168,97,140,18,14)
+  label(bg,"effect",12,128,296,24,18,0xF0CA73)
+  label(bg,"hint",12,180,296,36,14,0xE8E4F5)
+  label(bg,"footer",12,221,296,17,14,0xB9B2CB)
   for i=1,4 do
     local b=badge.ui.bar(bg,0,100,100)
-    b:set_pos(i%2==1 and 12 or 168,i<=2 and 85 or 99);b:set_size(140,7)
+    b:set_pos(i%2==1 and 12 or 168,i<=2 and 85 or 117);b:set_size(140,i<=2 and 7 or 4)
     b:style({bg_color=0x30263F,radius=3})
-    b:style({bg_color=i<=2 and 0xD97F99 or 0x8F97F2},"indicator")
+    b:style({bg_color=i>2 and 0x69C9C4 or (i==1 and 0xC3A0FF or 0xF0CA73)},"indicator")
     widgets["bar"..i]=b
   end
-  local b=badge.ui.bar(bg,0,2400,0);b:set_pos(12,189);b:set_size(296,5)
+  local b=badge.ui.bar(bg,0,2400,0);b:set_pos(12,173);b:set_size(296,4)
   b:style({bg_color=0x30263F});b:style({bg_color=0xE8C573},"indicator");widgets.progress=b
   for i=1,2 do
     local p=badge.ui.box(bg,9,9);p:style({bg_color=0xFF924E,border_width=0,radius=4})
@@ -322,28 +339,29 @@ local function render(now)
     for _,k in ipairs({"left","right","score1","score2","effect","bar1","bar2","bar3","bar4"}) do widgets[k]:hidden(not duel) end
   end
   local shown=now<note_until and note or ""
-  local hint="UP/DOWN select  A open  B back"
+  local hint,footer="","UP/DOWN select  A open  B back"
   text("title","SPELLBOUND")
-  text("status",string.upper(phase:gsub("_"," ")).."  |  "..(peer and ("VS "..peer:sub(-4)) or (radio_ok and "RADIO READY" or "NO RADIO")))
-  text("footer","ID "..me:sub(-4).."  |  "..(buttons and "BUTTON MODE" or "MOTION MODE"))
+  text("status",string.upper(phase:gsub("_"," ")).." / "..(buttons and "BUTTONS" or "MOTION").." / "..me:sub(-4))
   if duel then
-    text("left","YOU");text("right","OPPONENT")
     if g then
       for i=1,2 do
         local p=i==1 and own or 3-own
-        text("score"..i,string.format("HP %d  M %d",g.hp[p],g.mana[p]))
-        widgets["bar"..i]:set_value(g.hp[p]);widgets["bar"..(i+2)]:set_value(g.mana[p])
+        if text(i==1 and "left" or "right",(i==1 and "YOU  HP " or "FOE  HP ")..g.hp[p]) then widgets["bar"..i]:set_value(g.hp[p]) end
+        if text("score"..i,"MANA "..g.mana[p]) then widgets["bar"..(i+2)]:set_value(g.mana[p]) end
       end
     end
     local title="READY TO CAST"
     if phase=="result" then
       title=(not g or g.result==4) and "MATCH CANCELLED" or (g.result==3 and "DRAW" or (g.result==own and "YOU WIN" or "DEFEAT"))
-      hint="A or B returns to menu"
+      footer="A or B returns to menu"
     else
-      if capture then title="CHANNELING..."
-      elseif g and g.incoming[own]>now then title="INCOMING! CAST SHIELD"
+      if g and g.incoming[own]>now then title=g.shield[own]>=g.incoming[own] and "SHIELD READY TO BLOCK" or "INCOMING! CAST SHIELD"
+      elseif now<effect_until and effect=="B" then title="BLOCKED"
+      elseif capture then title="CHANNELING..."
+      elseif pending then title="CAST QUEUED - WAIT"
       elseif g and g.shield[own]>now then title="SHIELD ACTIVE" end
-      hint=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A, move, release to cast"
+      footer=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A > move > release"
+      hint="FIRE 30  SHIELD 25  MANA +35\nSTART controls. B twice surrenders."
     end
     text("effect",title)
   else
@@ -353,24 +371,35 @@ local function render(now)
       if phase=="lobby" then for i,p in ipairs(peers) do items[i]="Badge "..p.id:sub(-4) end end
       if phase=="train_select" then for i=1,3 do items[i]=spells[i]..(#models[i]>0 and " [learned]" or " [preset]") end end
       for i,t in ipairs(items) do body=body..(i==selected and "> " or "  ")..t.."\n" end
-      if phase=="lobby" and #peers==0 then body="Searching...\nBoth badges: Find a duel.\nKeep badges nearby." end
-    elseif phase=="offer" then body="Challenge from "..invite.peer:sub(-4).."\n\nA accepts. B declines."
-    elseif phase=="waiting" then body="Invitation sent.\nOpponent must press A.\nB cancels."
-    elseif phase=="starting" or phase=="joining" then body="Synchronizing...\nB cancels."
+      if phase=="lobby" then
+        hint="Your radio code: "..me:sub(-4).."\nOne player sends the invitation."
+        if #peers==0 then body="Searching...\nBoth badges: Find a duel.\nKeep badges nearby." end
+      elseif phase=="home" then
+        hint="AUX lights "..brightness.."/255  Radio "..(radio_ok and "ON" or "OFF").."\nHOME saves settings and exits"
+        footer="A open   START changes controls"
+      else hint="Three examples, then a fresh test." end
+    elseif phase=="offer" then body="Challenge from "..invite.peer:sub(-4).."\n\nAccept this player?";footer="A accepts   B declines"
+    elseif phase=="waiting" then body="Invitation queued.\nWaiting for opponent to accept.";footer="B cancels"
+    elseif phase=="starting" or phase=="joining" then body="Synchronizing...";footer="B cancels"
     elseif phase=="teach" then
-      body=spells[training.spell].."\n"..(#training.samples<3 and ("Example "..(#training.samples+1).." of 3") or "Fresh test repetition").."\nHold A still briefly; then move.\nRelease A. Keep starting pose."
-      hint="B cancels without saving"
+      body=spells[training.spell].."\n"..(#training.samples<3 and ("Example "..(#training.samples+1).." of 3") or "Fresh test repetition").."\n\nHold still; move; release A."
+      hint="Keep the same starting pose.\nOnly a successful test saves."
+      footer="Hold A to record   B cancels"
     elseif phase=="practice" then
-      body="Fireball: push and stop\nShield: tilt up and hold\nRecharge: two side-to-side cycles\nPresets need real-badge calibration."
-      hint=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A, move, release. B back."
+      body="FIREBALL: push, then stop\nSHIELD: tilt up and hold\nRECHARGE: side to side\n\nUse Teach for personal gestures."
+      hint="Preset accuracy is unmeasured.\nNo opponent or radio required."
+      footer=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A > move > release   B back"
     elseif phase=="diag" then
-      local x,y,z=badge.sensor.accel()
-      body=type(x)=="number" and type(y)=="number" and type(z)=="number" and x==x and y==y and z==z and max(abs(x),abs(y),abs(z))<=4000 and string.format("Accel mg: %d %d %d\nReads %d / changed %d\nChanges/s: %d\nLua heap: %d\nRadio drops: %d",round(x),round(y),round(z),reads,changes,floor(changes*1000/max(1,now-diag_since)),badge.sys.heap(),badge.radio.dropped()) or "Sensor unavailable"
-      hint="Changes/s is not the sensor rate"
+      local stats=badge.sys.stats()
+      body=(sensor_x and string.format("Accel: %d %d %d mg",round(sensor_x),round(sensor_y),round(sensor_z)) or "Sensor unavailable")..
+        string.format("\nReads %d / changed %d\nChanges/s %d (not Hz)\nLua %d/%d; peak %d\nWidgets %d / radio drops %d",reads,changes,floor(changes*1000/max(1,now-diag_since)),stats.lua_used,stats.lua_limit,stats.lua_peak,stats.widgets,badge.radio.dropped())
+      hint="Changed readings are not sample Hz.\nA logs stats to the IDE console."
+      footer="A log stats   B back"
     end
     text("body",body)
   end
-  text("hint",capture and "Recording... release A" or (shown~="" and shown or hint))
+  text("hint",shown~="" and shown or hint)
+  text("footer",capture and "Recording... release A" or footer)
   widgets.progress:hidden(not capture)
   if capture then widgets.progress:set_value(clamp(now-capture.start,0,2400)) end
   for i=1,2 do
@@ -378,70 +407,78 @@ local function render(now)
     widgets["orb"..i]:hidden(not active)
     if active then
       local f=clamp(1-(g.incoming[i]-now)/1800,0,1)
-      widgets["orb"..i]:set_pos(round(i==own and 284-f*268 or 16+f*268),i==own and 171 or 181)
+      widgets["orb"..i]:set_pos(round(i==own and 284-f*268 or 16+f*268),i==own and 151 or 161)
     end
   end
 end
 local function leds(now)
-  local mode=(now<effect_until and effect or "")
   local g=role=="host" and match or view
   local own=role=="host" and 1 or 2
-  if capture then mode="C"
-  elseif phase=="result" and g and g.result==own then mode="W"
-  elseif mode=="" and phase=="duel" and g then
-    if g.incoming[own]>now then mode="F" elseif g.shield[own]>now then mode="S" end
-  end
-  local tick=floor(now/130)%6+1
+  local mode=now<effect_until and effect or ""
+  if phase=="result" then mode=(g and g.result==own) and "W" or "E"
+  elseif mode=="D" or mode=="B" then -- Confirmed impact feedback.
+  elseif capture then mode="C"
+  elseif phase=="duel" and g and g.incoming[own]>now then mode=g.shield[own]>=g.incoming[own] and "S" or "I"
+  elseif mode=="" and phase=="duel" and g and g.shield[own]>now then mode="S" end
+  local wave=0.4+0.3*(1-math.cos(now*math.pi/1200))
+  local sweep=floor(now/170)%3+1
+  local chase=floor(now/150)%6+1
   for i=1,6 do
-    local r,b,gc=0,0,0
-    if mode=="C" then r,gc=1,0.55
-    elseif mode=="F" then r,gc=1,(i==tick and 0.6 or 0.1)
-    elseif mode=="S" then gc,b=0.45,1
-    elseif mode=="R" then gc,b=i==tick and 1 or 0.12,0.35
+    local r,gc,b,v=0,0,0,wave
+    local row=led_rows[i]
+    if mode=="C" then r,gc=1,0.65;v=4-row<=math.ceil((now-capture.start)/800) and 1 or 0.25
+    elseif mode=="F" or mode=="I" then r,gc=1,0.3;v=(mode=="F" and 4-row or row)==sweep and 1 or 0.3
+    elseif mode=="S" or mode=="B" then gc,b=0.65,1
+    elseif mode=="R" then gc,b=1,0.5;v=4-row==sweep and 1 or 0.3
     elseif mode=="D" then r=1
-    elseif mode=="W" then r,gc,b=1,0.75,i==tick and 0.5 or 0
-    else r,b=i==tick and 0.28 or 0.04,i==tick and 0.65 or 0.12 end
-    badge.led.set(i,round(r*brightness),round(gc*brightness),round(b*brightness))
+    elseif mode=="X" then r,gc=1,0.55
+    elseif mode=="W" then r,gc,b=1,0.78,0.3;v=i==chase and 1 or 0.3
+    elseif mode=="E" then r,gc,b=0.75,0.45,0.45
+    elseif phase=="duel" and g then
+      local left=i==1 or i==6 or i==5
+      v=row<=math.ceil(g.hp[left and own or (3-own)]/100*3) and 0.75 or 0
+      r,gc,b=left and 0.65 or 1,left and 0.35 or 0.78,left and 1 or 0.3
+    elseif phase=="lobby" or phase=="offer" or phase=="waiting" or phase=="starting" or phase=="joining" then
+      gc,b=0.6,1;v=i==chase and 1 or 0.2
+    else r,gc,b=0.65,0.35,1 end
+    badge.led.set(i,round(r*brightness*v),round(gc*brightness*v),round(b*brightness*v))
   end
   badge.led.show()
 end
 
 function on_enter(root)
+  ui_create(root)
   load_components()
   me=mac_key(badge.radio.mac()) or "000000000000"
   buttons=badge.store.get_int("buttons",0)==1
-  brightness=clamp(badge.store.get_int("brightness",64),16,128)
+  brightness=clamp(badge.store.get_int("brightness",160),0,255)
   slot=clamp(badge.store.get_int("gesture_slot",0),0,1)
   local loaded=decode_models(badge.fs.read("appdata/gest"..slot..".dat"))
   if not loaded then loaded=decode_models(badge.fs.read("appdata/gest"..(1-slot)..".dat"));if loaded then slot=1-slot end end
   if loaded then models=loaded end
-  ui_create(root)
-  radio_ok=badge.radio.enable()==true
-  -- The MAC can become available only after enable on some firmware builds.
-  me=mac_key(badge.radio.mac()) or me
-  if me=="000000000000" then radio_ok=false end
-  if radio_ok then badge.radio.on_recv(receive) end
+  -- Leave Bluetooth off until Find a duel; Practice/Teach need no radio.
   diag_since=clock()
-  badge.sys.log("Spellbound "..SB.version.." | firmware "..tostring(badge.sys.version()))
+  badge.sys.log("Spellbound 0.2.0 | firmware "..tostring(badge.sys.version()))
   render(clock());leds(clock())
 end
 function on_tick()
   local now=clock()
   network_tick(now)
   if capture then
-    if now-capture.start>SB.max_capture then capture_finish(now,true)
+    if now-capture.start>MAX_CAPTURE then capture_finish(now,true)
     else capture_sample(now);if not badge.input.is_down(badge.input.BUTTON.A) then capture_finish(now,false) end end
   end
-  if now-last_sample_at>=20 then
+  if phase=="diag" and now-last_sample_at>=20 then
     last_sample_at=now
-    local x,y,z=badge.sensor.accel()
-    if type(x)=="number" and type(y)=="number" and type(z)=="number" and x==x and y==y and z==z and max(abs(x),abs(y),abs(z))<=4000 then
-      local v=string.format("%d,%d,%d",round(x),round(y),round(z));reads=reads+1
-      if v~=last_sensor then changes=changes+1;last_sensor=v end
-    end
+    local x,y,z=read_accel()
+    if x then
+      reads=reads+1
+      if x~=sensor_x or y~=sensor_y or z~=sensor_z then changes=changes+1 end
+      sensor_x,sensor_y,sensor_z=x,y,z
+    else sensor_x,sensor_y,sensor_z=nil,nil,nil end
   end
-  if now>=next_ui then render(now);next_ui=now+100 end
-  if now>=next_led then leds(now);next_led=now+100 end
+  if now>=next_ui then render(now);next_ui=now+(phase=="diag" and 500 or 100) end
+  if now>=next_led then leds(now);next_led=now+50 end
   badge.sys.gc_step()
 end
 function on_button(button,kind)
@@ -451,10 +488,13 @@ function on_button(button,kind)
   if kind~=K.PRESSED then return end
   if button==B.START and (phase=="home" or phase=="practice" or phase=="duel") then
     if capture then capture=nil end
+    effect,effect_until="",0
     buttons=not buttons;stats_dirty=true;message(buttons and "Button controls enabled" or "Motion controls enabled");return
   end
   if button==B.AUX1 and phase=="home" then
-    brightness=brightness==24 and 64 or (brightness==64 and 128 or 24);stats_dirty=true
+    local level=0
+    for _,v in ipairs(light_levels) do if v>brightness then level=v;break end end
+    brightness=level;stats_dirty=true
     message("LED brightness "..brightness.." / 255");return
   end
   if button==B.B then
@@ -472,10 +512,18 @@ function on_button(button,kind)
     if button==B.UP then selected=(selected+2)%4+1
     elseif button==B.DOWN then selected=selected%4+1
     elseif button==B.A then
-      if selected==1 then if radio_ok then phase,peers,selected,next_tx="lobby",{},1,0 else message("Radio unavailable; reopen after reboot") end
+      if selected==1 then
+        if not radio_started then
+          radio_started=badge.radio.enable()==true
+          me=mac_key(badge.radio.mac()) or me
+          radio_ok=radio_started and me~="000000000000"
+          if radio_ok then badge.radio.on_recv(receive) end
+        end
+        if radio_ok then phase,peers,selected,next_tx="lobby",{},1,0
+        else message("Radio unavailable; HOME then reopen","X") end
       elseif selected==2 then phase="practice"
       elseif selected==3 then phase,selected="train_select",1
-      else phase="diag";reads,changes,diag_since=0,0,now end
+      else phase="diag";reads,changes,diag_since=0,0,now;sensor_x,sensor_y,sensor_z=nil,nil,nil end
     end
   elseif phase=="lobby" then
     if button==B.UP then selected=max(1,selected-1)
@@ -499,6 +547,10 @@ function on_button(button,kind)
     if buttons then
       if button==B.LEFT then submit(1) elseif button==B.UP then submit(2) elseif button==B.RIGHT then submit(3) end
     elseif button==B.A and not capture then capture_start(now) end
+  elseif phase=="diag" and button==B.A then
+    local s=badge.sys.stats()
+    badge.sys.log("firmware="..badge.sys.version().." lua="..s.lua_used.."/"..s.lua_limit.." peak="..s.lua_peak.." widgets="..s.widgets.." free="..s.free_heap)
+    message("Stats logged to the IDE console")
   elseif phase=="result" and button==B.A then reset_home() end
 end
 function on_exit()
