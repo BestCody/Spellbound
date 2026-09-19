@@ -4,7 +4,7 @@
 
 Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. Two badges run a host-authoritative match over the badge's restricted nearby radio channel. No phone, cloud account, external server, replacement firmware, microphone, or extra hardware is required by this implementation.
 
-**Implementation status:** complete source and desktop tests are included. The physical competition build is the four-file modular package in `dist/app/`. The app still needs physical validation for ESP32 memory/timing, rendering, radio reliability, and real gesture accuracy.
+**Implementation status:** complete source and desktop tests are included. The physical competition build is the lazy modular package in `dist/app/`, with a sub-1 KiB production `main.lua` bootstrap and feature modules loaded only when needed. The app still needs physical validation for ESP32 memory/timing, rendering, radio reliability, and real gesture accuracy.
 
 ## Design pass 0.2.0
 
@@ -12,7 +12,7 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. The app intentionally remains modular: `main.lua` loads `gesture.lua` and `engine.lua` separately to reduce peak Lua compile/startup pressure on the physical badge.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. Startup loads only the coordinator/core/UI path; `network.lua` is loaded on **Find a duel**, `casting.lua` on **Teach** or first duel capture, `gesture.lua` on first motion capture, and `engine.lua` when a match first needs game-state logic.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
@@ -59,10 +59,15 @@ On both badges, teach distinct custom gestures first. Then open **Find a duel** 
 
 ```text
 manifest.cfg          Runtime settings: API 2, 96 KiB, foreground wake lock
-src/main.lua          Lifecycle, UI, pairing/radio, capture, training flow
+src/main.lua          Tiny lifecycle bootstrap
+src/app.lua           Coordinator and lazy feature loader
+src/core.lua          Shared state and low-cost helpers
+src/ui.lua            UI creation, rendering, and LEDs
+src/network.lua       Discovery, handshake, reliability, synchronization
+src/casting.lua       Motion capture and training flow
 src/gesture.lua       Motion resampling and trained-template classifier
 src/engine.lua        Deterministic game rules and compact state encoding
-dist/app/             Four-file modular physical/runtime package
+dist/app/             Nine-file lazy modular physical/runtime package
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)
