@@ -1,7 +1,7 @@
--- Low-memory Spellbound UI: 9 native widgets, no projectile/mana widgets.
+-- Low-memory Spellbound UI: 9 native widgets, rebuildable around heavy loads.
 return function(S,root)
   local floor=math.floor
-  local W=S.widgets
+  local W={}
   local function label(parent,key,x,y,w,h,size,color)
     local o=badge.ui.label(parent,"")
     o:set_pos(x,y);o:set_size(w,h)
@@ -11,22 +11,36 @@ return function(S,root)
   local function text(key,v)
     if S.text_cache[key]~=v then W[key]:set_text(v);S.text_cache[key]=v;return true end
   end
-
-  local bg=badge.ui.box(root,320,240);bg:set_pos(0,0)
-  bg:style({bg_color=0x100C20,border_width=0,pad_all=0,radius=0});W.bg=bg
-  label(bg,"header",12,7,296,42,16,0xC3A0FF)
-  label(bg,"body",12,54,296,106,16)
-  label(bg,"p1",12,62,296,20,14,0xC3A0FF)
-  label(bg,"p2",12,105,296,20,14,0xF0CA73)
-  local hp1=badge.ui.bar(bg,0,100,100);hp1:set_pos(12,86);hp1:set_size(296,7)
-  hp1:style({bg_color=0x30263F,radius=3});hp1:style({bg_color=0xC3A0FF},"indicator");W.hp1=hp1
-  local hp2=badge.ui.bar(bg,0,100,100);hp2:set_pos(12,129);hp2:set_size(296,7)
-  hp2:style({bg_color=0x30263F,radius=3});hp2:style({bg_color=0xF0CA73},"indicator");W.hp2=hp2
-  label(bg,"info",12,148,296,68,14)
-  local p=badge.ui.bar(bg,0,S.MAX_CAPTURE,0);p:set_pos(12,222);p:set_size(296,4)
-  p:style({bg_color=0x30263F});p:style({bg_color=0xE8C573},"indicator");W.progress=p
-
+  local function build(parent)
+    W={};S.widgets=W;S.text_cache={};S.visible_phase=nil
+    local bg=badge.ui.box(parent,320,240);bg:set_pos(0,0)
+    bg:style({bg_color=0x100C20,border_width=0,pad_all=0,radius=0});W.bg=bg
+    label(bg,"header",12,7,296,42,16,0xC3A0FF)
+    label(bg,"body",12,54,296,106,16)
+    label(bg,"p1",12,62,296,20,14,0xC3A0FF)
+    label(bg,"p2",12,105,296,20,14,0xF0CA73)
+    local hp1=badge.ui.bar(bg,0,100,100);hp1:set_pos(12,86);hp1:set_size(296,7)
+    hp1:style({bg_color=0x30263F,radius=3});hp1:style({bg_color=0xC3A0FF},"indicator");W.hp1=hp1
+    local hp2=badge.ui.bar(bg,0,100,100);hp2:set_pos(12,129);hp2:set_size(296,7)
+    hp2:style({bg_color=0x30263F,radius=3});hp2:style({bg_color=0xF0CA73},"indicator");W.hp2=hp2
+    label(bg,"info",12,148,296,68,14)
+    local p=badge.ui.bar(bg,0,S.MAX_CAPTURE,0);p:set_pos(12,222);p:set_size(296,4)
+    p:style({bg_color=0x30263F});p:style({bg_color=0xE8C573},"indicator");W.progress=p
+    S.ui_live=true
+  end
+  function S.destroy_ui()
+    if not S.ui_live then return end
+    local bg=W.bg
+    S.ui_live=false
+    if bg then bg:delete() end
+    W={};S.widgets=W;S.text_cache={};S.visible_phase=nil
+  end
+  function S.create_ui(parent)
+    if S.ui_live then return end
+    build(parent)
+  end
   function S.render(now)
+    if not S.ui_live then return end
     local duel=S.phase=="duel" or S.phase=="result"
     local own=S.role=="host" and 1 or 2
     local g=S.role=="host" and S.match or S.view
@@ -37,7 +51,6 @@ return function(S,root)
     end
     text("header","SPELLBOUND\n"..string.upper(S.phase:gsub("_"," ")).." / "..S.me:sub(-4))
     local shown=now<S.note_until and S.note or ""
-
     if duel then
       local title="READY TO CAST"
       local hint="Hold A > move > release"
@@ -58,8 +71,7 @@ return function(S,root)
         elseif S.capture then title="CHANNELING..."
         elseif S.pending then title="CAST QUEUED - WAIT"
         elseif g and g.shield[own]>now then title="SHIELD ACTIVE" end
-        if shown~="" then hint=shown
-        else hint="FIRE 30 / SHIELD 25 / MANA +35" end
+        if shown~="" then hint=shown else hint="FIRE 30 / SHIELD 25 / MANA +35" end
       end
       text("info",title.."\n"..hint.."\n"..footer)
     else
@@ -91,7 +103,6 @@ return function(S,root)
     W.progress:hidden(not S.capture)
     if S.capture then W.progress:set_value(S.clamp(now-S.capture.start,0,S.MAX_CAPTURE)) end
   end
-
   function S.leds(now)
     local g=S.role=="host" and S.match or S.view
     local own=S.role=="host" and 1 or 2
@@ -108,4 +119,5 @@ return function(S,root)
     elseif mode=="W" then for i=1,6 do if i==step then badge.led.set(i,S.LED,120,20) end end end
     badge.led.show()
   end
+  build(root)
 end
