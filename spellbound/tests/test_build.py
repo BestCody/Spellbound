@@ -86,5 +86,17 @@ class MemoryArchitectureTests(unittest.TestCase):
         self.assertEqual(app_out, compact(production("app.lua", app_src)))
         self.assertLess(len(app_out), len(app_src))
 
+    def test_production_has_no_diagnostic_allocation_paths(self):
+        production_text = "\n".join(
+            (ROOT / "dist" / "app" / name).read_text() for name in RUNTIME_FILES
+        )
+        for diagnostic in ("badge.sys.log", "badge.sys.stats", "GESTURE ", "MEM "):
+            self.assertNotIn(diagnostic, production_text)
+        runtime_bytes = sum(
+            path.stat().st_size for path in (ROOT / "dist" / "app").iterdir()
+            if path.is_file()
+        )
+        self.assertLessEqual(runtime_bytes, 28 * 1024)
+
 if __name__ == "__main__":
     unittest.main()

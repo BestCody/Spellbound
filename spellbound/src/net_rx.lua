@@ -6,10 +6,10 @@ function S.receive(mac,rssi,payload)
   if payload=="SB1|H" then
     if S.phase=="lobby" then
       local found=false
-      for i=1,#S.peers do
-        local p=S.peers[i];if p[1]==from then p[2]=now;found=true;break end
+      for i=1,#S.peers,2 do
+        if S.peers[i]==from then S.peers[i+1]=now;found=true;break end
       end
-      if not found and #S.peers<5 then S.peers[#S.peers+1]={from,now} end
+      if not found and #S.peers<10 then S.peers[#S.peers+1]=from;S.peers[#S.peers+1]=now end
     end
     return
   end
@@ -49,12 +49,15 @@ function S.receive(mac,rssi,payload)
   elseif k=="T" and S.role=="guest" and (S.phase=="joining" or S.phase=="duel" or S.phase=="result") then
     local r,data=d:match("^([0-9A-F]+)|([0-9A-F]+)$")
     if not r or #r~=4 then return end
-    local rev=tonumber(r,16);local g=S.unpack_state(data,now)
-    if not g or rev<=(S.last_revision or -1) or g[16]>(S.seq or 0) then return end
+    local old_hp=S.view and S.view[3]
+    local old_in=S.view and S.view[9]
+    local rev=tonumber(r,16);local seq=tonumber(data:sub(18,21),16)
+    if rev<=(S.last_revision or -1) or not seq or seq>(S.seq or 0) then return end
+    local g=S.unpack_state(data,now,S.view);if not g then return end
     S.last_rx,S.last_revision=now,rev
-    if S.view then
-      if g[3]<S.view[3] then S.effect,S.effect_until="D",now+700
-      elseif S.view[9]>0 and g[9]==0 and g[1]==0 then S.effect,S.effect_until="B",now+700 end
+    if old_hp then
+      if g[3]<old_hp then S.effect,S.effect_until="D",now+700
+      elseif old_in>0 and g[9]==0 and g[1]==0 then S.effect,S.effect_until="B",now+700 end
     end
     S.view=g
     if S.pending and g[16]==S.pending[1] then S.feedback(g[17],S.pending[2]);S.pending=nil end

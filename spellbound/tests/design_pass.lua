@@ -10,10 +10,6 @@ local function has(b,text)
  return false
 end
 local function light(b,i) local c=b.leds[i] or {0,0,0};return c[1]+c[2]+c[3] end
-local function log_has(b,s)
- for _,v in ipairs(b.logs) do if v:find(s,1,true) then return true end end
- return false
-end
 local function pair()
  local a=Mock.new({mac="AA:00:00:00:00:01"})
  local b=Mock.new({mac="AA:00:00:00:00:02"})
@@ -46,8 +42,7 @@ test("duel startup reaches lobby with one-widget UI",function()
  assert(b:state().phase=="lobby" and #b.widgets==1)
  -- TEST_EXPORTS prewarms side-effect modules; physical production still drops UI
  -- before first feature compilation, which is locked by the build tests.
- assert(log_has(b,"MEM duel-before-radio"))
- assert(log_has(b,"MEM duel-after-radio"))
+ assert(b.enables==1 and b.receiver)
 end)
 test("failed radio startup leaves Teach usable",function()
  local b=Mock.new({radio=false});b:tap("A");assert(b:state().phase=="home")

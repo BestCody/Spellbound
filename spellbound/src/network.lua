@@ -72,9 +72,9 @@ function S.net_button(button,kind,now)
   end
   if S.phase=="lobby" then
     if button==B.UP then S.selected=math.max(1,S.selected-1)
-    elseif button==B.DOWN then S.selected=math.min(math.max(1,#S.peers),S.selected+1)
-    elseif button==B.A and S.peers[S.selected] then
-      S.peer=S.peers[S.selected][1];S.sid=string.format("%08X",badge.sys.random())
+    elseif button==B.DOWN then S.selected=math.min(math.max(1,#S.peers/2),S.selected+1)
+    elseif button==B.A and S.peers[S.selected*2-1] then
+      S.peer=S.peers[S.selected*2-1];S.sid=string.format("%08X",badge.sys.random())
       S.role,S.phase,S.deadline,S.last_rx,S.next_tx="host","waiting",now+12000,now,0
       S.seq,S.revision,S.last_revision=0,0,-1;S.locally_ended=false
     end

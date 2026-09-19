@@ -81,6 +81,8 @@ def build(check: bool = False) -> None:
     output[ROOT / "dist" / "app" / "manifest.cfg"] = manifest.encode()
 
     runtime_total = sum(len(v) for p, v in output.items() if p.parent.name == "app")
+    if runtime_total > 28 * 1024:
+        raise ValueError("Modular app exceeds the 28 KiB low-memory code budget")
     if runtime_total >= 48 * 1024:
         raise ValueError("Modular app exceeds documented 48 KiB Share bundle limit")
     if len(RUNTIME_FILES) + 1 > 16:
@@ -115,7 +117,8 @@ def build(check: bool = False) -> None:
 
     for path, content in output.items():
         if check:
-            if not path.is_file() or path.read_bytes() != content:
+            current = path.read_bytes().replace(b"\r\n", b"\n") if path.is_file() else None
+            if current != content:
                 raise SystemExit(
                     f"Out-of-date build: {path.relative_to(ROOT)}; run python tools/build.py"
                 )

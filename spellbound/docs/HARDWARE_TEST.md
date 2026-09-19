@@ -6,7 +6,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 - Launch the optional Badge Check app. Confirm x/y/z change as the badge is moved and that the other badge receives an A-triggered ping.
 - Install all 11 files from `dist/app/`: `manifest.cfg` plus the 10 Lua files. Do not include `README.md`, `build-info.json`, or `Badge-check.lua` in the Spellbound app. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
-- Capture `heap` before launch and immediately after the home screen opens. On the first Teach entry, capture `MEM teach-before-ui-drop`, `after-ui-drop`, `after-gesture-dtw`, `after-gesture-sig`, `after-casting`, `after-training`, and both UI-rebuild lines. On the first Find-a-duel entry, capture `after-network`, `after-net-rx`, `after-net-tick`, `after-engine`, the radio lines, and both UI-rebuild lines. The Lua API exposes free system heap but not the largest contiguous block, so pair these logs with the firmware's `heap`/app-reg output where possible.
+- Capture the firmware's external `heap`/app statistics before launch, on Home, after first Teach entry, after training all three spells, after first Find-a-duel entry, during a match, after a maximum-length recording, and after repeated rematches. Production diagnostics are intentionally absent. Record both current and peak Lua usage when the firmware exposes them; acceptance requires every observed Lua value to remain at or below 55 KiB.
 - Confirm no startup/tick/button deadline failures. The implementation targets the documented API 2 guide and newer callback allowances, not a guessed chip firmware.
 
 ## Network and match
@@ -15,7 +15,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 - In motion casting, fire once. Confirm exactly 25 damage after the warning, on both screens, and exactly 30 mana spent.
 - Shield before impact; confirm no damage and that the shield is consumed. Cast too late; confirm it cannot undo damage.
 - Recharge, check its cooldown, attempt a spell with insufficient mana, and check that the next valid action still works.
-- Play through a win, a surrender, and repeated rematches. Observe dropped-packet diagnostics and practical responsiveness in the crowded event environment.
+- Play through a win, a surrender, and repeated rematches. Observe recovery from packet loss and practical responsiveness in the crowded event environment.
 - Leave HOME on one badge or take it out of range. Confirm the other cancels rather than continuing with stale state. No host migration is implemented.
 
 ## Motion and persistence
@@ -23,7 +23,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 - Check each spell in Teach. Expect to personalize gestures; no physical accuracy was measured during generation.
 - Train all three spells with deliberately distinct movements. Use the fourth repetition as validation, then test additional repetitions not used during training.
 - Test random handling, partial movements, stationary A holds, delayed starts after pressing A, slower/faster and gentler/stronger repetitions, brief mid-gesture pauses, slightly late releases, and energetic (>4 g) flicks. Record false casts as well as rejected intended casts.
-- For every failed physical teach/cast, capture the `GESTURE hold=... active=... peak=... rms=...` line and the `GESTURE scores F=... S=... R=... best=... thr=... ratio=...` line. Use those numbers before changing global thresholds.
+- For every failed physical teach/cast, record the visible rejection, approximate hold/movement duration, spell, and movement description before changing global thresholds. Detailed production gesture logging was removed for memory headroom.
 - Verify a learned gesture causes the expected effect on the other badge in a real duel.
 - HOME and reopen, then power-cycle. Confirm the current session-only learned templates reset. Cancel a new training attempt within the same session and confirm already learned spell models remain.
 
@@ -38,6 +38,5 @@ Keep a copy of the prebuilt modular app and the standalone checker. Do not refla
 - On a fresh app launch, check Home/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify discovery/acceptance.
 - Check OFF/64/160/255 LED effects use a fixed competition brightness.
 - Confirm notifications do not hide the bottom controls, incoming warnings remain visible during capture, and a protected attack shows the shield-ready state.
-- Check long messages and Diagnostics for native-font wrapping/clipping. The desktop preview is not LVGL.
-- Press A in Diagnostics; capture its one-shot log and pre-launch `heap` output when relevant. Distinguish Lua usage from free system heap and observed changes/s from sensor Hz.
-- The desktop cap probe is close to its limit and does not exercise full runtime allocation. Measure after opening radio, loading/training all three gestures, and repeated duels. Treat failure as a reason to simplify the app, not raise the quota beyond 96 or delete unrelated inactive apps.
+- Check long messages for native-font wrapping/clipping. The desktop preview is not LVGL.
+- The desktop probes do not reproduce ESP32 allocation sizes or native services. Measure after opening radio, loading/training all three gestures, maximum-length capture, and repeated duels. Treat any value above 55 KiB as a reason to simplify further, not to raise the quota or delete unrelated inactive apps.

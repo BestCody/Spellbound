@@ -64,18 +64,19 @@ Repeat the same editor setup/push process for the second badge.
 
 ## First hardware test
 
-The first goal is to determine whether modular compilation fixes startup memory:
+The first goal is to verify the 50-55 KiB device target through the full workflow:
 
 1. Reboot, run `heap`, then open Spellbound.
 2. Run `heap` again and confirm the one-widget home screen launches.
-3. Enter **Teach a spell** once and capture every `MEM teach-...` line.
+3. Enter **Teach a spell**, return to the console, and record the external `heap`/app statistics.
 4. Train Fireball, Shield, and Recharge.
-5. Return home, open **Find a duel**, and capture every `MEM duel-...` line.
+5. Return home, open **Find a duel**, and record the external statistics again.
 6. One player sends an invitation; the other accepts.
 7. Hold A, perform the trained movement, and release to cast.
 8. Verify Fireball causes exactly one 25-HP hit after the warning.
 9. Verify the trained Shield gesture blocks an incoming Fireball.
 10. Verify the trained Recharge gesture restores mana.
+11. Recheck after a maximum-length recording and repeated matches; Lua used/peak must remain at or below 55 KiB for the target to be accepted.
 
 If modular startup still fails, capture the exact startup log before removing
 more gameplay features.
@@ -121,7 +122,7 @@ Useful read-only console commands are `apps`, `heap`, and `uitree`.
 output. The modular package exists specifically to avoid compiling the complete
 game, recognizer, and engine as one large Lua chunk.
 
-**Gesture fizzles:** the A-hold can last up to 4.5 seconds; leading/trailing idle is trimmed and the detected gesture itself should be roughly 0.16-2.8 seconds. The recognizer uses smoothed acceleration derivatives, per-gesture amplitude normalization, banded DTW, and a threshold learned from your three examples. If a physical test still fails, copy the `GESTURE ...` serial log lines so the class scores and learned threshold can be inspected.
+**Gesture fizzles:** the A-hold can last up to 4.5 seconds; leading/trailing idle is trimmed and the detected gesture itself should be roughly 0.16-2.8 seconds. The recognizer uses smoothed acceleration derivatives, per-gesture amplitude normalization, banded DTW, and a threshold learned from your three examples. Production gesture diagnostics were removed to preserve memory, so record the visible error and exact movement/hold timing when reporting a physical failure.
 
 Desktop tests cannot prove ESP32 compiler allocation, allocator headroom,
 native rendering, radio reliability, or real gesture accuracy. Those still

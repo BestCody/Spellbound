@@ -25,9 +25,9 @@ local raw,bad=c[3],c[4];S.capture=nil
 if bad or too_long then
 S.message(too_long and "A hold too long - try again" or "Sensor sample invalid","X");return
 end
-local sig,err,meta=signature(raw);raw=nil
+local sig,err=signature(raw);raw=nil
 if not sig then S.message(err or "No clear movement","X");return end
-S.handle_signature(sig,meta)
+S.handle_signature(sig)
 end
 function S.capture_tick(now)
 local c=S.capture;if not c then return end

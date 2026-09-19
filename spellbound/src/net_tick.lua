@@ -3,8 +3,8 @@ local S=SPELLBOUND_STATE
 function S.network_tick(now)
   if not S.radio_ok then return end
   if S.phase=="lobby" then
-    for i=#S.peers,1,-1 do if now-S.peers[i][2]>4000 then table.remove(S.peers,i) end end
-    S.selected=S.clamp(S.selected,1,math.max(1,#S.peers))
+    for i=#S.peers-1,1,-2 do if now-S.peers[i+1]>4000 then table.remove(S.peers,i+1);table.remove(S.peers,i) end end
+    S.selected=math.min(math.max(S.selected,1),math.max(1,#S.peers/2))
     if now>=S.next_tx then badge.radio.send("SB1|H");S.next_tx=now+850 end
   elseif S.phase=="offer" then
     if now>S.deadline then S.invite=nil;S.phase="lobby" end
@@ -38,8 +38,8 @@ function S.net_render(now,shown)
   local out=""
   if S.phase=="lobby" then
     if #S.peers==0 then out="Searching...\nKeep both badges nearby."
-    else for n=1,#S.peers do
-      local x=S.peers[n];out=out..(n==S.selected and "> " or "  ").."Badge "..x[1]:sub(-4).."\n"
+    else for i=1,#S.peers,2 do
+      local n=(i+1)/2;out=out..(n==S.selected and "> " or "  ").."Badge "..S.peers[i]:sub(-4).."\n"
     end end
     return out.."\nRadio code "..S.me:sub(-4).."\nA invite / B back"
   elseif S.phase=="offer" then

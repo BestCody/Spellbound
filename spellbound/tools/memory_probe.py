@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Desktop Lua 5.4 allocation probe. NOT a physical ESP32 memory measurement.
 
-Measures standard libraries + production parsing and delayed module init, without the
-large desktop mock. 64-bit Lua allocation sizes differ from an ESP32 build.
+Measures the production bootstrap and each delayed module stack without the large
+desktop mock. 64-bit Lua allocation sizes differ from an ESP32 build.
 """
 from __future__ import annotations
 import ctypes as C
@@ -90,23 +90,44 @@ def probe(limit: int = 0) -> dict:
         lua.lua_setglobal(state,b"badge")
         baseline=counter["used"]
         counter["limit"]=limit
-        source=(ROOT/"src/main.lua").read_bytes().split(b"-- TEST_EXPORTS_BEGIN")[0]+b"\nreturn load_components\n"
-        status=lua.luaL_loadbufferx(state,source,len(source),b"@src/main.lua",b"t")
-        load_peak=counter["peak"]
-        if status==0:
-            status=lua.lua_pcallk(state,0,1,0,0,None)
         lua.lua_gc.argtypes=[C.c_void_p,C.c_int]
-        if status==0:
+
+        def run(source: bytes, name: bytes) -> tuple[int,str|None]:
+            status=lua.luaL_loadbufferx(state,source,len(source),name,b"t")
+            if status==0:
+                status=lua.lua_pcallk(state,0,0,0,0,None)
+            error=None
+            if status:
+                value=lua.lua_tolstring(state,-1,None)
+                error=value.decode(errors="replace") if value else "unknown Lua error"
+            lua.lua_settop(state,0)
+            return status,error
+
+        main=(ROOT/"src/main.lua").read_bytes().split(b"-- TEST_EXPORTS_BEGIN")[0]
+        status,error=run(main,b"@src/main.lua")
+        stages={"bootstrap_peak_bytes":counter["peak"]}
+
+        def load_stage(label: str, names: tuple[str,...]) -> None:
+            nonlocal status,error
+            if status:
+                return
+            source=";".join(f'require("{name}")' for name in names).encode()
+            status,error=run(source,("@probe/"+label).encode())
             lua.lua_gc(state,2)
-            status=lua.lua_pcallk(state,0,0,0,0,None)
-        err=lua.lua_tolstring(state,-1,None) if status else None
-        lua.lua_gc.argtypes=[C.c_void_p,C.c_int]
+            stages[label+"_after_gc_bytes"]=counter["used"]
+            stages[label+"_peak_bytes"]=counter["peak"]
+
+        load_stage("home",("app",))
+        load_stage("teach",("gesture_dtw","gesture_sig","casting","training"))
+        load_stage("duel",("network","net_rx","net_tick","engine"))
         lua.lua_gc(state,2)
         after_gc=counter["used"]
-        return {"limit_bytes":limit,"stdlib_bytes":baseline,"compile_peak_bytes":load_peak,
-                "after_chunk_bytes":counter["used"],"after_gc_bytes":after_gc,"allocation_rejections":counter["rejections"],"module_errors":module_errors,"total_peak_bytes":counter["peak"],
-                "success":status==0,"error":err.decode(errors="replace") if err else None,
-                "scope":"64-bit desktop Lua 5.4, compile + delayed module initialization; excludes badge native services"}
+        return {"limit_bytes":limit,"baseline_bytes":baseline,**stages,
+                "after_gc_bytes":after_gc,"app_retained_bytes":after_gc-baseline,
+                "app_peak_delta_bytes":counter["peak"]-baseline,
+                "allocation_rejections":counter["rejections"],"module_errors":module_errors,
+                "total_peak_bytes":counter["peak"],"success":status==0,"error":error,
+                "scope":"64-bit desktop Lua 5.4 bootstrap + delayed module initialization; excludes badge services, UI, radio, gesture templates, and gameplay"}
     finally:
         lua.lua_close(state)
 

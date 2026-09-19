@@ -193,17 +193,7 @@ A class must first pass its own learned acceptance threshold; ambiguity cannot t
 
 ## Physical diagnostics
 
-Every validly segmented recording logs:
-
-    GESTURE hold=<ms> active=<ms> samples=<n> start=<ms> end=<ms> peak=<mg> rms=<mg>
-
-Recognition logs:
-
-    GESTURE scores F=<d> S=<d> R=<d> best=<spell> thr=<d> ratio=<d> <result>
-
-Training also logs nearest-example distance and learned spread/threshold.
-
-These logs distinguish segmentation failure, out-of-class distance, ambiguity with another spell, inconsistent training examples, and unusual motion energy.
+Production gesture logging and its metadata/score tables were removed for memory headroom. Physical failures should record the visible rejection, selected spell, approximate hold/movement timing, and movement description. Detailed logging can be restored only in a separate instrumented build; it is not part of the competition package.
 
 ## Memory and performance
 
@@ -215,7 +205,7 @@ Persistent learned payload:
 
 plus Lua table/string overhead and three small thresholds.
 
-DTW working state is two short rows and is reused across comparisons. Raw capture is transient; at 50 Hz and a 4.5 s hold the packed sensor payload is roughly 1.8 KiB before Lua string overhead.
+DTW working state is two short rows and is reused across comparisons. Raw capture is transient; each sample uses a two-byte timestamp and three quantized axis bytes, so a 50 Hz, 4.5 s hold is roughly 1.1 KiB before Lua string overhead.
 
 ## Automated validation
 

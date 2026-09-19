@@ -12,7 +12,7 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The startup UI uses one native label and startup caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, four multiplayer modules are loaded. The badge's private `require()` cache cannot be cleared, so unused wrapper modules have been removed rather than pretending to unload them.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The startup UI uses one native label and startup caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, four multiplayer modules are loaded. The badge's private `require()` cache cannot be cleared, so unused wrappers and production diagnostics have been removed rather than pretending to unload them.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
@@ -66,7 +66,7 @@ src/network.lua       Radio coordinator + multiplayer buttons
 src/net_rx.lua        Packet receive/handshake state machine
 src/net_tick.lua      Discovery/retry/match tick + duel renderer
 src/casting.lua       Motion capture coordinator
-src/training.lua      Teaching, lazy models, diagnostics + Teach renderer
+src/training.lua      Teaching, lazy models + Teach renderer
 src/gesture_sig.lua   Segmentation + normalized derivative signatures
 src/gesture_dtw.lua   Banded DTW + classification with lazy 14-cell workspace
 src/engine.lua        Flat host game state + rules + duel LED effects
@@ -74,6 +74,7 @@ dist/app/             11-file runtime package (10 Lua + manifest)
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)
+tools/memory_scenarios.py Optional desktop Lua 5.4 scenario profiler (requires lupa)
 tools/publish.ps1     Create/push a new GitHub repository from Windows
 tools/publish.sh      Equivalent Bash publishing script
 docs/                 Protocol, recognition, testing, and provenance

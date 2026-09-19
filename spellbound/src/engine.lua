@@ -44,13 +44,19 @@ local function pack_state(g,now)
     rem(g[8],now),rem(g[9],now),g[16],g[17])
 end
 local function hex(s,a,b) return tonumber(s:sub(a,b),16) end
-local function unpack_state(s,now)
+local function unpack_state(s,now,g)
   if #s~=22 or s:find("[^0-9A-F]") then return nil end
-  local g={hex(s,1,1),hex(s,2,3),hex(s,4,5),hex(s,6,7),hex(s,8,9),
-    now+hex(s,10,11)*20,now+hex(s,12,13)*20,hex(s,14,15),hex(s,16,17),
-    0,0,0,0,0,0,hex(s,18,21),hex(s,22,22),now}
-  if g[1]>4 or g[17]>5 or g[2]>100 or g[3]>100 or g[4]>100 or g[5]>100 then return nil end
-  g[8]=g[8]>0 and now+g[8]*20 or 0;g[9]=g[9]>0 and now+g[9]*20 or 0
+  local state,h1,h2,m1,m2,sh1,sh2,at1,at2,seq,result=
+    hex(s,1,1),hex(s,2,3),hex(s,4,5),hex(s,6,7),hex(s,8,9),
+    hex(s,10,11),hex(s,12,13),hex(s,14,15),hex(s,16,17),
+    hex(s,18,21),hex(s,22,22)
+  if state>4 or result>5 or h1>100 or h2>100 or m1>100 or m2>100 then return nil end
+  g=g or {}
+  g[1],g[2],g[3],g[4],g[5]=state,h1,h2,m1,m2
+  g[6],g[7]=now+sh1*20,now+sh2*20
+  g[8],g[9]=at1>0 and now+at1*20 or 0,at2>0 and now+at2*20 or 0
+  for i=10,15 do g[i]=0 end
+  g[16],g[17],g[18]=seq,result,now
   return g
 end
 S.new_match,S.apply,S.advance,S.pack_state,S.unpack_state=

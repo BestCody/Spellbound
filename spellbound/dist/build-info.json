@@ -2,6 +2,6 @@
   "version": "0.2.0",
   "package_mode": "deep-memory-side-effect",
   "runtime_files": 11,
-  "runtime_bytes": 29077,
+  "runtime_bytes": 26143,
   "standalone_import": false
 }

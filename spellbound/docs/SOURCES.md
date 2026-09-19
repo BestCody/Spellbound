@@ -15,7 +15,7 @@ Relevant reference ranges include the single-file import and multi-file `require
 
 The implementation uses the documented `badge.ui`, `badge.sensor`, `badge.input`, `badge.sys`, `badge.store`, `badge.fs`, `badge.led`, and `badge.radio` namespaces. It does not call invented Arduino, raw LVGL, Wi-Fi, HTTP, audio, or arbitrary Bluetooth APIs.
 
-Memory limits and sample cadence are reference-guide statements, not measurements made on the user's hardware. The guide says the accelerometer cache updates at 50 Hz, but this app's diagnostics count observed changes and cannot verify each reading's freshness.
+Memory limits and sample cadence are reference-guide statements, not measurements made on the user's hardware. The guide says the accelerometer cache updates at 50 Hz; the memory-oriented production build has no sensor-rate diagnostics and does not independently verify each reading's freshness.
 
 GitHub publishing command reference:
 https://cli.github.com/manual/gh_repo_create

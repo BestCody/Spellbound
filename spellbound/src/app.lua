@@ -1,7 +1,6 @@
 -- Resident coordinator + one-widget home UI. Feature modules install side effects into S.
 local APP={}
 SPELLBOUND_APP=APP
-local min,max=math.min,math.max
 local S={
   MAX_CAPTURE=4500,
   spells={"Fireball","Shield","Recharge"},codes={"F","S","R"},
@@ -12,7 +11,6 @@ local S={
 SPELLBOUND_STATE=S
 local root,label
 
-function S.clamp(v,a,b) return min(b,max(a,v)) end
 function S.clock() return badge.sys.ms() end
 function S.mac_key(v)
   if type(v)~="string" then return nil end
@@ -64,46 +62,39 @@ function S.render(now)
 end
 
 local function gc8() for _=1,8 do badge.sys.gc_step() end end
-local function mem(tag)
-  local x=badge.sys.stats()
-  badge.sys.log(string.format("MEM %s lua=%d peak=%d free=%d widgets=%d",
-    tag,x.lua_used or -1,x.lua_peak or -1,x.free_heap or -1,x.widgets or -1))
+local function drop()
+  S.destroy_ui();gc8()
 end
-local function drop(tag)
-  mem(tag.."-before-ui-drop");S.destroy_ui();gc8();mem(tag.."-after-ui-drop")
+local function rebuild()
+  gc8();S.create_ui(root);S.render(S.clock())
 end
-local function rebuild(tag)
-  gc8();mem(tag.."-before-ui-rebuild");S.create_ui(root);S.render(S.clock())
-  mem(tag.."-after-ui-rebuild")
-end
-local function load_teach(tag)
+local function load_teach()
   if S.teach_button then return end
-  require("gesture_dtw");badge.sys.gc_step();mem(tag.."-after-gesture-dtw")
-  require("gesture_sig");badge.sys.gc_step();mem(tag.."-after-gesture-sig")
-  require("casting");badge.sys.gc_step();mem(tag.."-after-casting")
-  require("training");badge.sys.gc_step();mem(tag.."-after-training")
+  require("gesture_dtw");gc8()
+  require("gesture_sig");gc8()
+  require("casting");gc8()
+  require("training");gc8()
 end
-local function load_duel(tag)
+local function load_duel()
   if S.network_tick then return end
-  require("network");badge.sys.gc_step();mem(tag.."-after-network")
-  require("net_rx");badge.sys.gc_step();mem(tag.."-after-net-rx")
-  require("net_tick");badge.sys.gc_step();mem(tag.."-after-net-tick")
-  require("engine");badge.sys.gc_step();mem(tag.."-after-engine")
+  require("network");gc8()
+  require("net_rx");gc8()
+  require("net_tick");gc8()
+  require("engine");gc8()
 end
 local function teach()
-  if not S.teach_button then drop("teach");load_teach("teach") end
+  if not S.teach_button then drop();load_teach();load_teach=nil end
   S.phase,S.selected="train_select",1
   S.mode_button,S.mode_render=S.teach_button,S.teach_render
-  if not label then rebuild("teach") else S.render(S.clock()) end
+  if not label then rebuild() else S.render(S.clock()) end
 end
 local function duel()
-  if not S.network_tick then drop("duel");load_duel("duel") end
+  if not S.network_tick then drop();load_duel();load_duel=nil end
   if not S.radio_started then
-    mem("duel-before-radio");S.radio_started=badge.radio.enable()==true
+    S.radio_started=badge.radio.enable()==true
     S.me=S.mac_key(badge.radio.mac()) or S.me
     S.radio_ok=S.radio_started and S.me~="000000000000"
     if S.radio_ok then badge.radio.on_recv(S.receive) end
-    mem("duel-after-radio")
   end
   if S.radio_ok then
     S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
@@ -111,13 +102,12 @@ local function duel()
   else
     S.phase="home";S.message("Radio unavailable; HOME then reopen","X")
   end
-  if not label then rebuild("duel") else S.render(S.clock()) end
+  if not label then rebuild() else S.render(S.clock()) end
 end
 local function enter(r)
   root=r;S.create_ui(r)
   S.me=S.mac_key(badge.radio.mac()) or "000000000000"
-  badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
-  local now=S.clock();S.render(now);badge.led.clear();badge.led.show();mem("home-ready")
+  local now=S.clock();S.render(now);badge.led.clear();badge.led.show()
 end
 local function tick()
   local now=S.clock()
@@ -146,7 +136,7 @@ end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
 -- TEST_ONLY_BEGIN
 local function test_api()
-  load_teach("test");load_duel("test")
+  load_teach();load_duel()
   return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
     calibrate=S.calibrate,class_score=S.class_score,
     new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
