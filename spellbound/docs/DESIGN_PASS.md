@@ -40,7 +40,7 @@ Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use 
 
 Only Diagnostics performs its extra observed-reading counts. It compares numeric cached values rather than constructing a diagnostic string every 20 ms during every mode. Its display refreshes every 500 ms. **Changed values per second are not measured sensor sample Hz.** A logs firmware, Lua usage/limit/peak, native widget count, and free system heap once to the IDE console.
 
-The production `main.lua` remains only a lifecycle bootstrap. Physical testing then showed that compiling 5-8 KiB lazy modules after native UI allocation could still fail when the largest system block was ~7.7 KiB. Network, capture/training, and gesture recognition are therefore split into micro-modules; every lazy source chunk is capped at 4 KiB by the build. GC steps run between submodule loads.
+The production `main.lua` remains only a lifecycle bootstrap. Physical testing then showed that compiling lazy modules after native UI allocation could still fail even after the 9-widget reduction: the home screen had ~24 KiB free system heap but only an ~11.8 KiB largest block. On first entry to Teach or Find a duel, Spellbound now deletes the app-owned UI tree, runs GC, preloads the complete required feature stack (and the game engine/radio for duel mode), then rebuilds the 9-widget UI. Network, capture/training, and gesture recognition remain split into micro-modules capped at 4 KiB by the build.
 
 ### Important memory limitation
 
