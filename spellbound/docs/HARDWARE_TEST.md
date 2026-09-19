@@ -6,7 +6,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 - Launch the optional Badge Check app. Confirm x/y/z change as the badge is moved and that the other badge receives an A-triggered ping.
 - Install all 14 files from `dist/app/`: `manifest.cfg` plus the 13 Lua files. Do not include `README.md`, `build-info.json`, or `Badge-check.lua` in the Spellbound app. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
-- Capture `heap` before launch, immediately after the home screen opens, after entering Teach, after the first gesture capture, and after enabling Find a duel. Record both free heap and largest block; the 96 KiB Lua limit is not reserved physical RAM.
+- Capture `heap` before launch and immediately after the home screen opens. On the first Teach entry, capture `MEM teach-before-ui-drop`, `after-ui-drop`, `after-casting`, `after-training`, `after-gesture`, and both UI-rebuild lines. On the first Find-a-duel entry, capture the corresponding duel/network/engine/radio/rebuild lines. The Lua API exposes free system heap but not the largest contiguous block, so pair these logs with the firmware's `heap`/app-reg output where possible.
 - Confirm no startup/tick/button deadline failures. The implementation targets the documented API 2 guide and newer callback allowances, not a guessed chip firmware.
 
 ## Network and match

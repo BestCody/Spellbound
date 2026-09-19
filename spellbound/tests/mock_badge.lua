@@ -25,6 +25,13 @@ function M.new(opts)
   function obj:set_text(t) assert(type(t)=="string" and #t<=1024);self.text=t;c.ui_writes=c.ui_writes+1 end
   function obj:hidden(b) assert(type(b)=="boolean");self.hide=b;c.ui_writes=c.ui_writes+1 end
   function obj:set_value(v) integer(v);assert(v>=self.min and v<=self.max);self.value=v;c.ui_writes=c.ui_writes+1 end
+  function obj:delete()
+   local kept={}
+   for _,wgt in ipairs(c.widgets) do
+    if wgt~=self and wgt.parent_handle~=self then kept[#kept+1]=wgt end
+   end
+   c.widgets=kept;self.deleted=true;c.ui_writes=c.ui_writes+1
+  end
   c.widgets[#c.widgets+1]=obj
   return setmetatable(obj,{__index=function(_,k) error("Undocumented widget API: "..k) end})
  end
