@@ -8,7 +8,7 @@ The app still uses only documented widgets at integer positions on a 320x240 scr
 
 The duel now separates **YOU HP / FOE HP** from their respective **MANA** values and tracks. Violet denotes the local player, gold the opponent, and teal denotes mana. This remains local-player-relative on both host and guest badges. Labels and health/mana bars update when their displayed values change.
 
-The main action/status line, two-line notification area, and physical-button footer occupy separate regions. A spell result or error no longer replaces the instructions for casting or going back. Text has been shortened and the non-duel body changed to 16-pixel type to give Practice, Teach, and Diagnostics more room.
+The main action/status line, two-line notification area, and physical-button footer occupy separate regions. A spell result or error no longer replaces the instructions for casting or going back. Text has been shortened and the non-duel body changed to 16-pixel type to give Teach, Teach, and Diagnostics more room.
 
 Incoming attacks take display priority over recording. A shield covering the known landing time shows **SHIELD READY TO BLOCK**, rather than asking the player to cast another shield. An observed attack resolution without damage produces **BLOCKED** feedback. This feedback follows received host state; it is not a new exact-clock or authenticated event protocol.
 
@@ -30,13 +30,13 @@ The supplied guide's front-view mapping is used: left side top-to-bottom is **1,
 | Win | Gold perimeter chase. |
 | Other result | Muted warm breathing. |
 
-AUX1 on Home cycles **0, 64, 160, 255** logical brightness, with 160 the default for a new install. Existing valid saved values are preserved until the next change. Zero is truly off; values above 128 are no longer arbitrarily clamped. The firmware's own brightness curve/output cap is left to the firmware. The app still multiplies by the user's selected brightness and the effect envelope.
+
 
 Frames are timestamp-driven, scheduled no faster than every 50 ms, overwrite all six positions, and latch with one `show()`. A delayed callback skips frames rather than replaying a catch-up loop. These are visual game cues, not a promise of exact light output or timing on a real badge. HOME clears and shows the strip. Returning to the menu clears stale result messages/effects.
 
 ## Runtime and memory
 
-Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use Practice and Teach without starting Bluetooth. Once enabled, it stays enabled for that foreground session; returning to the in-app home menu is not the same as exiting via HOME. Startup failure leaves non-radio modes available and asks for a normal exit/reopen.
+Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use Teach without starting Bluetooth. Once enabled, it stays enabled for that foreground session; returning to the in-app home menu is not the same as exiting via HOME. Startup failure leaves non-radio modes available and asks for a normal exit/reopen.
 
 Only Diagnostics performs its extra observed-reading counts. It compares numeric cached values rather than constructing a diagnostic string every 20 ms during every mode. Its display refreshes every 500 ms. **Changed values per second are not measured sensor sample Hz.** A logs firmware, Lua usage/limit/peak, native widget count, and free system heap once to the IDE console.
 
@@ -54,4 +54,4 @@ The slug remains `spellbound`. All five files in `dist/app` are still required; 
 
 Although the guide prefers a single-file app by default, this existing repository deliberately retains its modular installation because combining the compiled game, recognizer, persistence, and UI into one chunk increases startup pressure. The five-file exception is explicit in the installer and documentation; no claim is made that Import alone installs the modules.
 
-Run the original 46 tests, the 16 design regressions in `tests/design_pass.lua`, the six Python manifest-contract tests, both production/checker smoke tests, and `tools/build.py --check`. The build now rejects duplicate manifest keys, invalid heap settings, and conflicting HOME options before creating an installer. Physical validation remains unperformed. Inspect actual text wrapping, LED brightness, radio behavior, and callback/memory diagnostics on both badges using `HARDWARE_TEST.md`.
+Run the original 46 tests, the 16 design regressions in `tests/design_pass.lua`, the six Python manifest-contract tests, both production/checker smoke tests, and `tools/build.py --check`. The build now rejects duplicate manifest keys, invalid heap settings, and conflicting HOME options before creating an installer. Physical validation remains unperformed. Inspect actual text wrapping, LED effects use a fixed competition brightness.
