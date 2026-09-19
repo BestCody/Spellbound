@@ -1,9 +1,67 @@
--- Small coordinator. Feature-specific buttons/UI effects live in lazy modules.
+-- Resident coordinator + one-widget home UI. Feature modules install side effects into S.
 local APP={}
 SPELLBOUND_APP=APP
-local S=require("core")
-badge.sys.gc_step()
-local root
+local min,max=math.min,math.max
+local S={
+  MAX_CAPTURE=4500,
+  spells={"Fireball","Shield","Recharge"},codes={"F","S","R"},
+  phase="home",selected=1,me="",radio_ok=false,
+  note="",note_until=0,effect="",effect_until=0,
+  next_ui=0,next_led=0,next_gc=0,last_screen=nil,
+}
+SPELLBOUND_STATE=S
+local root,label
+
+function S.clamp(v,a,b) return min(b,max(a,v)) end
+function S.clock() return badge.sys.ms() end
+function S.mac_key(v)
+  if type(v)~="string" then return nil end
+  local s=string.upper((v:gsub(":","")))
+  if #s~=12 or s:find("[^0-9A-F]") then return nil end
+  return s
+end
+function S.message(s,fx,duration)
+  S.note,S.note_until=s,S.clock()+(duration or 2000)
+  if fx then S.effect,S.effect_until=fx,S.clock()+700 end
+end
+function S.reset_home()
+  S.phase,S.selected="home",1
+  S.mode_button,S.mode_render=nil,nil
+  S.capture,S.training=nil,nil
+  S.role,S.peer,S.sid,S.match,S.pending,S.view,S.invite=nil,nil,nil,nil,nil,nil,nil
+  S.peers=nil
+  S.seq,S.revision,S.last_revision=0,0,-1
+  S.next_tx,S.leave_until,S.locally_ended=0,0,false
+  S.last_rx,S.last_state_tx,S.last_ping,S.deadline=0,0,0,0
+  S.declined,S.declined_until=nil,0
+  S.note,S.note_until,S.effect,S.effect_until="",0,"",0
+  S.last_screen=nil
+end
+function S.destroy_ui()
+  if label then label:delete();label=nil end
+  S.last_screen=nil
+end
+function S.create_ui(parent)
+  if label then return end
+  label=badge.ui.label(parent,"")
+  label:set_pos(12,8);label:set_size(296,224)
+  label:style({text_font=14,text_color=0xE8E4F5,pad_all=0})
+  S.last_screen=nil
+end
+function S.render(now)
+  if not label then return end
+  local shown=now<S.note_until and S.note or ""
+  local out="SPELLBOUND / "..string.upper(S.phase:gsub("_"," ")).." / "..S.me:sub(-4).."\n\n"
+  if S.phase=="home" then
+    out=out..(S.selected==1 and "> " or "  ").."Find a duel\n"..
+      (S.selected==2 and "> " or "  ").."Teach a spell\n\n"..
+      (shown~="" and shown or ("Radio "..(S.radio_ok and "ON" or "OFF")))..
+      "\nA open / B back"
+  elseif S.mode_render then
+    out=out..S.mode_render(now,shown)
+  else out=out.."Loading..." end
+  if S.last_screen~=out then label:set_text(out);S.last_screen=out end
+end
 
 local function gc8() for _=1,8 do badge.sys.gc_step() end end
 local function mem(tag)
@@ -19,41 +77,44 @@ local function rebuild(tag)
   mem(tag.."-after-ui-rebuild")
 end
 local function load_teach(tag)
-  if S.handle_signature then return end
-  local sig=require("gesture_sig");mem(tag.."-after-gesture-sig")
-  local c=require("casting");c(S,sig);c=nil;badge.sys.gc_step();mem(tag.."-after-casting")
-  S.raw_sample,S.signature=sig.raw_sample,sig.signature;sig=nil;badge.sys.gc_step()
-  local d=require("gesture_dtw")
-  S.distance,S.class_score,S.calibrate,S.recognize,S.train_max=
-    d.distance,d.class_score,d.calibrate,d.recognize,d.train_max
-  d=nil;badge.sys.gc_step();mem(tag.."-after-gesture-dtw")
-  local t=require("training");t(S);t=nil;badge.sys.gc_step();mem(tag.."-after-training")
+  if S.teach_button then return end
+  require("gesture_dtw");badge.sys.gc_step();mem(tag.."-after-gesture-dtw")
+  require("gesture_sig");badge.sys.gc_step();mem(tag.."-after-gesture-sig")
+  require("casting");badge.sys.gc_step();mem(tag.."-after-casting")
+  require("training");badge.sys.gc_step();mem(tag.."-after-training")
+end
+local function load_duel(tag)
+  if S.network_tick then return end
+  require("network");badge.sys.gc_step();mem(tag.."-after-network")
+  require("net_rx");badge.sys.gc_step();mem(tag.."-after-net-rx")
+  require("net_tick");badge.sys.gc_step();mem(tag.."-after-net-tick")
+  require("engine");badge.sys.gc_step();mem(tag.."-after-engine")
 end
 local function teach()
-  if S.handle_signature then S.phase,S.selected="train_select",1;S.mode_button=S.teach_button;return end
-  drop("teach");load_teach("teach");S.phase,S.selected="train_select",1;rebuild("teach")
+  if not S.teach_button then drop("teach");load_teach("teach") end
+  S.phase,S.selected="train_select",1
+  S.mode_button,S.mode_render=S.teach_button,S.teach_render
+  if not label then rebuild("teach") else S.render(S.clock()) end
 end
 local function duel()
-  if S.network_tick and S.radio_started and S.radio_ok then
-    S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0;S.mode_button=S.net_button;return
-  end
-  drop("duel")
-  if not S.network_tick then
-    local n=require("network");n(S);n=nil;badge.sys.gc_step();mem("duel-after-network")
-    S.ensure_engine();mem("duel-after-engine");gc8()
-  end
+  if not S.network_tick then drop("duel");load_duel("duel") end
   if not S.radio_started then
     mem("duel-before-radio");S.radio_started=badge.radio.enable()==true
-    S.me=S.mac_key(badge.radio.mac()) or S.me;S.radio_ok=S.radio_started and S.me~="000000000000"
+    S.me=S.mac_key(badge.radio.mac()) or S.me
+    S.radio_ok=S.radio_started and S.me~="000000000000"
     if S.radio_ok then badge.radio.on_recv(S.receive) end
     mem("duel-after-radio")
   end
-  if S.radio_ok then S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0;S.mode_button=S.net_button
-  else S.phase="home";S.message("Radio unavailable; HOME then reopen","X") end
-  rebuild("duel")
+  if S.radio_ok then
+    S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
+    S.mode_button,S.mode_render=S.net_button,S.net_render
+  else
+    S.phase="home";S.message("Radio unavailable; HOME then reopen","X")
+  end
+  if not label then rebuild("duel") else S.render(S.clock()) end
 end
 local function enter(r)
-  root=r;local u=require("ui");u(S,r);u=nil;badge.sys.gc_step()
+  root=r;S.create_ui(r)
   S.me=S.mac_key(badge.radio.mac()) or "000000000000"
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
   local now=S.clock();S.render(now);badge.led.clear();badge.led.show();mem("home-ready")
@@ -85,9 +146,7 @@ end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
 -- TEST_ONLY_BEGIN
 local function test_api()
-  load_teach("test")
-  if not S.network_tick then local n=require("network");n(S) end
-  S.ensure_engine()
+  load_teach("test");load_duel("test")
   return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
     calibrate=S.calibrate,class_score=S.class_score,
     new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,

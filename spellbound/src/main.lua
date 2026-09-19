@@ -1,4 +1,4 @@
--- Spellbound lifecycle bootstrap. Runtime features live in small lazy modules.
+-- Tiny lifecycle bootstrap. Runtime features install into app state lazily.
 local app
 local function get_app()
   if app then return app end
@@ -14,7 +14,6 @@ local function get_app()
   end
   app=candidate
   SPELLBOUND_APP=nil
-  if package and package.loaded then package.loaded["app"]=nil end
   badge.sys.gc_step()
   return app
 end

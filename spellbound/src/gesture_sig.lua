@@ -1,7 +1,7 @@
--- Capture packing, activity segmentation, normalized derivative signature.
+-- Side-effect capture packing, segmentation, and normalized derivative signature.
+local S=SPELLBOUND_STATE
 local floor,min,max,sqrt=math.floor,math.min,math.max,math.sqrt
-local N,B=16,8
-local RQ,FQ=32,32
+local N,B,RQ,FQ=16,8,32,32
 local MAX_HOLD,MIN_ACTIVE,MAX_ACTIVE=4500,160,2800
 local START_DV,START_BASE,START_STRONG,END_DV=80,80,180,45
 local function clamp(v,a,b) return min(b,max(a,v)) end
@@ -80,4 +80,4 @@ local function signature(raw)
   end
   return table.concat(out),nil,{hold_ms=hold,active_ms=active,samples=n,start_ms=sm,end_ms=em,peak_delta=round(peak),rms_delta=round(rms)}
 end
-return {raw_sample=raw_sample,signature=signature}
+S.raw_sample,S.signature=raw_sample,signature

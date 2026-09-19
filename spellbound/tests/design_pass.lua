@@ -37,19 +37,17 @@ test("Find a duel enables radio once per foreground session",function()
 end)
 test("Teach preloading deletes and rebuilds the UI",function()
  local b=Mock.new();b:tap("DOWN");b:tap("A")
- assert(b:state().phase=="train_select" and #b.widgets==3)
+ assert(b:state().phase=="train_select" and #b.widgets==1)
  -- TEST_EXPORTS prewarms recognizer modules before this transition; production
  -- UI-drop/module-stage logging is locked by the source/build contract.
 end)
-test("duel preloading deletes UI before engine and radio",function()
+test("duel startup reaches lobby with one-widget UI",function()
  local b=Mock.new();b:tap("A")
- assert(b:state().phase=="lobby" and #b.widgets==3)
- assert(log_has(b,"MEM duel-after-ui-drop") and log_has(b,"widgets=0"))
- -- TEST_EXPORTS prewarms network/engine, so only the physical radio transition
- -- remains lazy in this desktop path.
+ assert(b:state().phase=="lobby" and #b.widgets==1)
+ -- TEST_EXPORTS prewarms side-effect modules; physical production still drops UI
+ -- before first feature compilation, which is locked by the build tests.
  assert(log_has(b,"MEM duel-before-radio"))
  assert(log_has(b,"MEM duel-after-radio"))
- assert(log_has(b,"MEM duel-after-ui-rebuild") and log_has(b,"widgets=3"))
 end)
 test("failed radio startup leaves Teach usable",function()
  local b=Mock.new({radio=false});b:tap("A");assert(b:state().phase=="home")
@@ -65,9 +63,9 @@ test("one LED latch per scheduled frame, no catch-up burst",function()
  n=b.shows;b:tick(5000);assert(b.shows==n+1)
 end)
 test("fallback spell buttons are disabled",function()
- local a,b,step=pair();local mana=a:state().match.mana[1]
+ local a,b,step=pair();local mana=a:state().match[4]
  a:tap("START");a:tap("LEFT");a:tap("UP");a:tap("RIGHT");step(200)
- assert(a:state().match.mana[1]==mana)
+ assert(a:state().match[4]==mana)
  assert(not has(a,"LEFT fire"))
 end)
 test("unchanged duel vitals avoid full repaint",function()
@@ -94,7 +92,7 @@ end)
 test("shielded incoming attack has distinct ready and blocked feedback",function()
  local a,b,step=pair();a.api.submit(1);step(200);b.api.submit(2);step(300)
  assert(has(b,"SHIELD READY TO BLOCK"));assert(not has(b,"INCOMING! CAST SHIELD"))
- step(1600);assert(b:state().view.hp[2]==100 and has(b,"BLOCKED"))
+ step(1600);assert(b:state().view[3]==100 and has(b,"BLOCKED"))
 end)
 test("pending guest action is not presented as a confirmed cast",function()
  local a,b,step=pair();b.api.submit(1);b:tick(100)
@@ -106,10 +104,10 @@ test("new menu cancels stale result notes and LED effects",function()
  assert(a:state().phase=="home" and a:state().note=="")
  for i=1,6 do assert(light(a,i)==0,"Idle LEDs should be off") end
 end)
-test("low-memory UI uses three bounded widgets",function()
+test("low-memory UI uses one bounded widget",function()
  local a,b,step=pair();a.api.submit(1);step(400)
  for _,c in ipairs({a,b}) do
-  assert(#c.widgets==3)
+  assert(#c.widgets==1)
   for _,w in ipairs(c.widgets) do assert(w.x>=0 and w.y>=0 and w.x+w.w<=320 and w.y+w.h<=240) end
  end
 end)

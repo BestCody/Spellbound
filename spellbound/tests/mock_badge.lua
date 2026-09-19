@@ -65,8 +65,11 @@ function M.new(opts)
  local cache={}
  c.env.require=function(name)
   assert(name:match("^[A-Za-z0-9_]+$"))
-  if not cache[name] then cache[name]=assert(loadfile(base.."/"..name..".lua","t",c.env))() end
-  return cache[name]
+  if not cache[name] then
+  local v=assert(loadfile(base.."/"..name..".lua","t",c.env))()
+  cache[name]=v==nil and true or v
+ end
+ return cache[name]
  end
  c.api=(opts.source and assert(load(opts.source,"standalone","t",c.env)) or assert(loadfile(opts.file or (base.."/main.lua"),"t",c.env)))()
  c.root={}

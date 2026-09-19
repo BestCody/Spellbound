@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Build Spellbound's modular Hacker Badge runtime."""
+"""Build Spellbound's low-resident-memory Hacker Badge runtime."""
 from __future__ import annotations
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "net_rx.lua", "net_tick.lua", "net_buttons.lua", "effects.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua")
-LAZY_FILES = {"network.lua", "net_rx.lua", "net_tick.lua", "net_buttons.lua", "effects.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua"}
+RUNTIME_FILES = (
+    "main.lua", "app.lua",
+    "gesture_dtw.lua", "gesture_sig.lua", "casting.lua", "training.lua",
+    "network.lua", "net_rx.lua", "net_tick.lua", "engine.lua",
+)
+LAZY_FILES = set(RUNTIME_FILES) - {"main.lua", "app.lua"}
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
-
 
 def validate_manifest(text: str) -> None:
     fields: dict[str, str] = {}
@@ -38,7 +40,6 @@ def validate_manifest(text: str) -> None:
         if key in fields and not 1 <= len(fields[key].encode()) <= maximum:
             raise ValueError(f"Invalid {key} byte length")
 
-
 def production_source(name: str, text: str) -> str:
     if name == "main.lua":
         text = text.split("-- TEST_EXPORTS_BEGIN", 1)[0]
@@ -51,28 +52,35 @@ def production_source(name: str, text: str) -> str:
         text = before + after
     return text.rstrip() + "\n"
 
+def compact_lua(text: str) -> str:
+    """Conservative compaction: remove blank/full-line comments and indentation only."""
+    lines = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("--"):
+            continue
+        lines.append(line)
+    return "\n".join(lines) + "\n"
 
 def build(check: bool = False) -> None:
     manifest = (ROOT / "manifest.cfg").read_text(encoding="utf-8")
     validate_manifest(manifest)
-    sources = {name: (ROOT / "src" / name).read_text(encoding="utf-8")
-               for name in RUNTIME_FILES}
-
     output: dict[Path, bytes] = {}
     for name in RUNTIME_FILES:
-        code = production_source(name, sources[name])
+        source = (ROOT / "src" / name).read_text(encoding="utf-8")
+        code = compact_lua(production_source(name, source))
         code.encode("ascii")
-        if len(code.encode()) > 64 * 1024:
-            raise ValueError(f"{name} exceeds 64 KiB")
-        if name == "main.lua" and len(code.encode()) > 2 * 1024:
-            raise ValueError("main.lua must remain a tiny bootstrap under 2 KiB")
-        if name in LAZY_FILES and len(code.encode()) > 4 * 1024:
+        size = len(code.encode())
+        if name == "main.lua" and size > 2 * 1024:
+            raise ValueError("main.lua must remain under 2 KiB")
+        if name == "app.lua" and size > 6 * 1024:
+            raise ValueError("resident app.lua must remain under 6 KiB")
+        if name in LAZY_FILES and size > 4 * 1024:
             raise ValueError(f"{name} exceeds 4 KiB lazy-module compile budget")
         output[ROOT / "dist" / "app" / name] = code.encode()
     output[ROOT / "dist" / "app" / "manifest.cfg"] = manifest.encode()
 
-    runtime_total = sum(len(output[ROOT / "dist" / "app" / name])
-                        for name in RUNTIME_FILES) + len(manifest.encode())
+    runtime_total = sum(len(v) for p, v in output.items() if p.parent.name == "app")
     if runtime_total >= 48 * 1024:
         raise ValueError("Modular app exceeds documented 48 KiB Share bundle limit")
     if len(RUNTIME_FILES) + 1 > 16:
@@ -81,24 +89,29 @@ def build(check: bool = False) -> None:
     report = {
         "version": next((line.split("=", 1)[1] for line in manifest.splitlines()
                          if line.startswith("version=")), "unknown"),
-        "package_mode": "modular-lazy",
+        "package_mode": "deep-memory-side-effect",
         "runtime_files": len(RUNTIME_FILES) + 1,
         "runtime_bytes": runtime_total,
         "standalone_import": False,
-        "sha256": {
-            str(path.relative_to(ROOT / "dist")): hashlib.sha256(data).hexdigest()
-            for path, data in output.items()
-        },
     }
     output[ROOT / "dist" / "build-info.json"] = (json.dumps(report, indent=2) + "\n").encode()
 
+    expected = set(RUNTIME_FILES) | {"manifest.cfg"}
+    app_dir = ROOT / "dist" / "app"
+    actual = {p.name for p in app_dir.iterdir() if p.is_file()} if app_dir.exists() else set()
     if check:
+        extra = actual - expected
+        if extra:
+            raise SystemExit("Unexpected runtime files: " + ", ".join(sorted(extra)))
         if LEGACY_STANDALONE.exists():
-            raise SystemExit(
-                "Legacy dist/Spellbound-install.lua exists; remove it before using the modular build"
-            )
-    elif LEGACY_STANDALONE.exists():
-        LEGACY_STANDALONE.unlink()
+            raise SystemExit("Legacy dist/Spellbound-install.lua exists")
+    else:
+        app_dir.mkdir(parents=True, exist_ok=True)
+        for path in app_dir.iterdir():
+            if path.is_file() and path.name not in expected:
+                path.unlink()
+        if LEGACY_STANDALONE.exists():
+            LEGACY_STANDALONE.unlink()
 
     for path, content in output.items():
         if check:
@@ -111,10 +124,9 @@ def build(check: bool = False) -> None:
             path.write_bytes(content)
 
     print(
-        f"{'Verified' if check else 'Built'} modular app "
+        f"{'Verified' if check else 'Built'} deep-memory app "
         f"{runtime_total:,} bytes across {len(RUNTIME_FILES) + 1} files."
     )
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
