@@ -8,6 +8,11 @@ Spellbound's physical badge build is now the modular package in:
 dist/app/
 ├── manifest.cfg
 ├── main.lua
+├── app.lua
+├── core.lua
+├── ui.lua
+├── network.lua
+├── casting.lua
 ├── gesture.lua
 └── engine.lua
 ```
@@ -23,17 +28,17 @@ the gesture recognizer and duel engine as separate modules.
 3. Make the editor's app manifest match `dist/app/manifest.cfg`.
 4. Open the editor's `main.lua` and replace its contents with
    `dist/app/main.lua`.
-5. In the editor's **Files** panel, click **+** and create `gesture.lua`.
-6. Paste the contents of `dist/app/gesture.lua`.
-7. Click **+** again and create `engine.lua`.
-8. Paste the contents of `dist/app/engine.lua`.
-9. Verify the editor contains `main.lua`, `gesture.lua`, and `engine.lua`
-   under the same app.
-10. Do **not** use **Import app** for the support modules. Import app replaces
-    the editor workspace; the **+** button adds a module to the current app.
+5. In the editor's **Files** panel, use **+** to add each support module:
+   `app.lua`, `core.lua`, `ui.lua`, `network.lua`, `casting.lua`,
+   `gesture.lua`, and `engine.lua`.
+6. Paste the matching file from `dist/app/` into each editor file.
+7. Verify all eight Lua files plus the manifest are present under the same app.
+8. Do **not** use **Import app** for support modules. Import app replaces the
+   editor workspace; the **+** button adds a module to the current app.
 
-The runtime intentionally loads the two support modules from `main.lua` using
-`require("gesture")` and `require("engine")`.
+The production `main.lua` is intentionally under 1 KiB. It loads only
+`app.lua`; the coordinator then lazy-loads heavier feature modules as their
+screens/actions are entered.
 
 ## Upload to the first badge
 
@@ -71,6 +76,11 @@ Readable source remains modular:
 
 ```text
 src/main.lua
+src/app.lua
+src/core.lua
+src/ui.lua
+src/network.lua
+src/casting.lua
 src/gesture.lua
 src/engine.lua
 ```
