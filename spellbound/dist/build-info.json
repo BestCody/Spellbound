@@ -1,15 +1,15 @@
 {
   "version": "0.2.0",
   "runtime_files": 5,
-  "runtime_bytes": 34114,
+  "runtime_bytes": 34220,
   "standalone_import": true,
-  "standalone_bytes": 31737,
+  "standalone_bytes": 31573,
   "sha256": {
-    "app/main.lua": "a4632379b1ea138e527b49b891b3df2f20b78cc2a4592819ae62d6c330da57cf",
+    "app/main.lua": "ec848a94ebfc0af4a1c488c3f5acbda471a4e7a5f0468df66fc825c63c6bf26b",
     "app/gesture.lua": "b2079fe66edf71aabbad785f226cf44f2eedcc9b904e7e7cbd7d41d454683ab0",
     "app/engine.lua": "abb056036a16ca0e4eb4c88e33d0988eadb0bf8f13637c83d04671719c20e7b1",
     "app/model_codec.lua": "e9254b3450c2d91a71d502e047c8abf8385cdd7e20a565549b45297c8a12d899",
     "app/manifest.cfg": "4816730573af84cb8b66bd2c7858b7e8e9b63610676b1217d4577c4dfdebddf9",
-    "Spellbound-install.lua": "23f49547086706c7600387c2a30dddac2542d85837ffeb459117580c115fc31b"
+    "Spellbound-install.lua": "41477f89f8ec663c547efd48c2ed55ac817b9899c8cf4258fe080f3986b0a01c"
   }
 }
