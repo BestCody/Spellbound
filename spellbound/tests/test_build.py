@@ -34,17 +34,33 @@ class ManifestTests(unittest.TestCase):
         self.assertNotIn('require("engine")', production)
         self.assertNotIn('badge.ui.', production)
 
-    def test_heavy_features_are_lazy(self):
+    def test_heavy_features_are_lazy_and_micro_chunked(self):
         app = (ROOT / "src" / "app.lua").read_text()
         casting = (ROOT / "src" / "casting.lua").read_text()
         network = (ROOT / "src" / "network.lua").read_text()
+        gesture = (ROOT / "src" / "gesture.lua").read_text()
         self.assertIn('install("ui",root)', app)
         self.assertIn('install("network")', app)
         self.assertIn('install("casting")', app)
         self.assertNotIn('require("gesture")', app)
         self.assertNotIn('require("engine")', app)
         self.assertIn('require("gesture")', casting)
+        self.assertIn('require("training")', casting)
         self.assertIn('require("engine")', network)
+        self.assertIn('require("net_rx")', network)
+        self.assertIn('require("net_tick")', network)
+        self.assertIn('require("gesture_sig")', gesture)
+        self.assertIn('require("gesture_dtw")', gesture)
+
+        lazy = {
+            "network.lua", "net_rx.lua", "net_tick.lua", "casting.lua",
+            "training.lua", "gesture.lua", "gesture_sig.lua",
+            "gesture_dtw.lua", "engine.lua",
+        }
+        for name in lazy:
+            size = len((ROOT / "src" / name).read_bytes())
+            self.assertLessEqual(size, 4096, f"{name} grew beyond 4 KiB")
+        self.assertLessEqual(len(list((ROOT / "dist" / "app").iterdir())), 16)
 
 if __name__ == "__main__":
     unittest.main()
