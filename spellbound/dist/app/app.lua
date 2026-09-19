@@ -50,7 +50,7 @@ local function button(button,kind)
           if S.radio_ok then badge.radio.on_recv(S.receive) end
         end
         if S.radio_ok then S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0 else S.message("Radio unavailable; HOME then reopen","X") end
-      else ensure_casting();S.phase,S.selected="train_select",1 end
+      else ensure_casting();S.ensure_training();S.phase,S.selected="train_select",1 end
     end
   elseif S.phase=="lobby" then
     if button==B.UP then S.selected=math.max(1,S.selected-1)
@@ -71,7 +71,7 @@ local function exit()
   badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
 end
 local function test_api()
-  ensure_casting();S.ensure_gesture();ensure_network();S.ensure_engine()
+  ensure_casting();S.ensure_training();S.ensure_gesture();ensure_network();S.ensure_engine()
   return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
     calibrate=S.calibrate,class_score=S.class_score,
     new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
