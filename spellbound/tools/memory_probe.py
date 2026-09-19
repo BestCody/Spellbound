@@ -73,6 +73,21 @@ def probe(limit: int = 0) -> dict:
             lua.lua_settop(state,-2)
         lua.lua_pushcclosure(state,require,0)
         lua.lua_setglobal(state,b"require")
+        # Model the native incremental-GC binding with a C callback, not a Lua
+        # wrapper/prototype that would itself distort this allocation probe.
+        lua.lua_createtable.argtypes=[C.c_void_p,C.c_int,C.c_int]
+        lua.lua_setfield.argtypes=[C.c_void_p,C.c_int,C.c_char_p]
+        lua.lua_gc.argtypes=[C.c_void_p,C.c_int]
+        @Callback
+        def gc_step(L):
+            lua.lua_gc(L,5,0)  # LUA_GCSTEP; device step size is not asserted.
+            return 0
+        lua.lua_createtable(state,0,1)
+        lua.lua_createtable(state,0,1)
+        lua.lua_pushcclosure(state,gc_step,0)
+        lua.lua_setfield(state,-2,b"gc_step")
+        lua.lua_setfield(state,-2,b"sys")
+        lua.lua_setglobal(state,b"badge")
         baseline=counter["used"]
         counter["limit"]=limit
         source=(ROOT/"src/main.lua").read_bytes().split(b"-- TEST_EXPORTS_BEGIN")[0]+b"\nreturn load_components\n"

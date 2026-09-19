@@ -5,7 +5,7 @@ assert(b.api==nil,"Test hooks accidentally shipped")
 for _=1,20 do b:tick() end
 b:tap("DOWN");b:tap("A");b:tap("START");b:tap("LEFT");b:tick(100)
 local recognized=false
-for _,w in ipairs(b.widgets) do if rawget(w,"text")=="Fireball recognized" then recognized=true end end
+for _,w in ipairs(b.widgets) do if rawget(w,"text")=="Fireball test cast" then recognized=true end end
 assert(recognized,"Production button mode did not show Fireball")
 b:tap("B");b:tap("DOWN");b:tap("DOWN");b:tap("A");b:tap("A")
 local function motion(t) return 1400*math.sin(t*2*math.pi),0,1000 end

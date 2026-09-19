@@ -14,6 +14,12 @@ model_codec.lua
 
 **All five are required.** `dist/Spellbound-install.lua` combines only the manifest and main file for the IDE's Import app button. It does not embed the modules. Do not upload the repository, tests, publishing scripts, or documentation to the badge.
 
+## Updating to design pass 0.2.0
+
+Use the same five files and slug. Replace `main.lua`, all three modules, and the manifest with the current `dist/app` versions (or import the starter and add the modules again). Save editor work first. Personal gesture files under `appdata/` are not part of this upload; do not delete them.
+
+A fresh launch keeps Bluetooth off until **Find a duel**. AUX1 on the home menu now cycles OFF/64/160/255. The control mode is in the header; notifications do not replace the bottom casting instructions. In Diagnostics, A logs memory/firmware information. See `docs/DESIGN_PASS.md` before relying on the desktop memory probe.
+
 ## Current badge IDE
 
 1. Open https://badge.hackthenorth.com/ide/ in desktop Chrome or Edge. Save existing editor work before replacing it.

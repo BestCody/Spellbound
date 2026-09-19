@@ -11,15 +11,20 @@ function M.new(opts)
  opts=opts or {}
  local c={now=0,offset=opts.offset or 0,mac=opts.mac or "AA:00:00:00:00:01",sent={},
   files=opts.files or {},store=opts.store or {},held={},widgets={},logs={},leds={},
-  accel={0,0,1000},radio=opts.radio~=false,drop_count=0,disabled=false,write_fail=false}
+  accel={0,0,1000},radio=opts.radio~=false,drop_count=0,disabled=false,write_fail=false,enables=0,sensor_reads=0,store_writes=0,file_writes=0,ui_writes=0}
  local function widget(kind,parent,w,h)
-  local obj={kind=kind,parent_handle=parent,w=w or 0,h=h or 0,x=0,y=0,hide=false,styles={}}
-  function obj:set_pos(x,y) integer(x);integer(y);self.x,self.y=x,y end
-  function obj:set_size(w2,h2) integer(w2);integer(h2);self.w,self.h=w2,h2 end
-  function obj:style(s,selector) for k,v in pairs(s) do assert(allowed_style[k],"unsupported style: "..k);self.styles[k]=v end end
-  function obj:set_text(t) assert(type(t)=="string" and #t<=1024);self.text=t end
-  function obj:hidden(b) assert(type(b)=="boolean");self.hide=b end
-  function obj:set_value(v) integer(v);assert(v>=self.min and v<=self.max);self.value=v end
+  local obj={kind=kind,parent_handle=parent,w=w or 0,h=h or 0,x=0,y=0,hide=false,styles={},parts={}}
+  function obj:set_pos(x,y) integer(x);integer(y);self.x,self.y=x,y;c.ui_writes=c.ui_writes+1 end
+  function obj:set_size(w2,h2) integer(w2);integer(h2);self.w,self.h=w2,h2;c.ui_writes=c.ui_writes+1 end
+  function obj:style(s,selector)
+   local target=self.styles
+   if selector then self.parts[selector]=self.parts[selector] or {};target=self.parts[selector] end
+   for k,v in pairs(s) do assert(allowed_style[k],"unsupported style: "..k);target[k]=v end
+   c.ui_writes=c.ui_writes+1
+  end
+  function obj:set_text(t) assert(type(t)=="string" and #t<=1024);self.text=t;c.ui_writes=c.ui_writes+1 end
+  function obj:hidden(b) assert(type(b)=="boolean");self.hide=b;c.ui_writes=c.ui_writes+1 end
+  function obj:set_value(v) integer(v);assert(v>=self.min and v<=self.max);self.value=v;c.ui_writes=c.ui_writes+1 end
   c.widgets[#c.widgets+1]=obj
   return setmetatable(obj,{__index=function(_,k) error("Undocumented widget API: "..k) end})
  end
@@ -30,18 +35,19 @@ function M.new(opts)
    bar=function(root,lo,hi,v) local w=widget("bar",root);w.min,w.max,w.value=lo,hi,v;return w end},"ui"),
   sys=strict({ms=function() return c.now+c.offset end,random=function(n) return n and 12345%n or (opts.seed or 305419896) end,
    log=function(s) c.logs[#c.logs+1]=s end,heap=function() return 50000 end,
+   stats=function() return {lua_used=50000,lua_limit=98304,lua_peak=60000,widgets=#c.widgets,free_heap=90000,uptime_ms=c.now} end,
    version=function() return "mock-2026-09-19" end,gc_step=function() collectgarbage("step",1) end},"sys"),
-  sensor=strict({accel=function() if c.accel then return table.unpack(c.accel) end;return nil,"not available" end},"sensor"),
-  radio=strict({mac=function() return c.mac end,enable=function() return c.radio end,
+  sensor=strict({accel=function() c.sensor_reads=c.sensor_reads+1;if c.accel then return table.unpack(c.accel) end;return nil,"not available" end},"sensor"),
+  radio=strict({mac=function() return c.mac end,enable=function() c.enables=c.enables+1;return c.radio end,
    disable=function() c.disabled=true end,on_recv=function(f) c.receiver=f end,dropped=function() return c.drop_count end,
    send=function(p) assert(#p>=1 and #p<=44,"radio packet exceeds budget");c.sent[#c.sent+1]={payload=p,at=c.now};return true end},"radio"),
   led=strict({set=function(i,r,g,b) assert(i>=1 and i<=6);integer(r);integer(g);integer(b);assert(math.max(r,g,b)<=255 and math.min(r,g,b)>=0);c.leds[i]={r,g,b} end,
    set_all=function(r,g,b) for i=1,6 do c.leds[i]={r,g,b} end end,
    show=function() c.shows=(c.shows or 0)+1 end,clear=function() c.leds={} end},"led"),
   fs=strict({read=function(path) return c.files[path] end,
-   write=function(path,data) assert(#data<=16384);if c.write_fail then return nil,"full" end;c.files[path]=data;return true end},"fs"),
+   write=function(path,data) c.file_writes=c.file_writes+1;assert(#data<=16384);if c.write_fail then return nil,"full" end;c.files[path]=data;return true end},"fs"),
   store=strict({get_int=function(k,d) local v=c.store[k];return v~=nil and v or d end,
-   set_int=function(k,v) assert(#k<=24);c.store[k]=v end},"store"),
+   set_int=function(k,v) c.store_writes=c.store_writes+1;assert(#k<=24);c.store[k]=v end},"store"),
   input={BUTTON={A=1,B=2,HOME=3,DOWN=4,LEFT=5,RIGHT=6,UP=7,AUX1=8,START=9},KIND={PRESSED=1,RELEASED=2},
    is_down=function(b) return c.held[b]==true end}}
  c.env={badge=strict(badge,"badge"),SPELLBOUND_TEST=true,assert=assert,error=error,
