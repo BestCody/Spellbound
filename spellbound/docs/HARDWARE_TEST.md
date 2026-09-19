@@ -20,7 +20,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 ## Motion and persistence
 
-- Check each preset in Practice. Expect to personalize gestures; no physical accuracy was measured during generation.
+- Check each preset in Teach. Expect to personalize gestures; no physical accuracy was measured during generation.
 - Train all three spells with deliberately distinct movements. Use the fourth repetition as validation, then test additional repetitions not used during training.
 - Test random handling, partial movements, and stationary A holds. Record false casts as well as rejected intended casts.
 - Verify a learned gesture causes the expected effect on the other badge in a real duel.
@@ -34,8 +34,8 @@ Keep a copy of the prebuilt app and the standalone checker. Do not reflash the b
 
 ## Design pass 0.2.0 acceptance
 
-- On a fresh app launch, check Home/Practice/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify discovery/acceptance.
-- Check OFF/64/160/255 LED brightness, physical left/right health mapping, recording progress pairs, shield/block feedback, and HOME cleanup. Confirm OFF survives a normal exit/reopen.
+- On a fresh app launch, check Home/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify discovery/acceptance.
+- Check OFF/64/160/255 LED effects use a fixed competition brightness.
 - Confirm notifications do not hide the bottom controls, incoming warnings remain visible during capture, and a protected attack shows the shield-ready state.
 - Check long messages and Diagnostics for native-font wrapping/clipping. The desktop preview is not LVGL.
 - Press A in Diagnostics; capture its one-shot log and pre-launch `heap` output when relevant. Distinguish Lua usage from free system heap and observed changes/s from sensor Hz.
