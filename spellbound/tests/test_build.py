@@ -53,6 +53,11 @@ class ManifestTests(unittest.TestCase):
         self.assertIn('require("gesture_dtw")', app)
         self.assertIn('require("casting")', app)
         self.assertIn('require("training")', app)
+        for marker in (
+            "teach-after-gesture-sig", "teach-after-casting",
+            "teach-after-gesture-dtw", "teach-after-training",
+        ):
+            self.assertIn(marker, app)
         self.assertNotIn('require("gesture")', app)
         self.assertNotIn('require("engine")', app)
         self.assertNotIn('require(', casting)
