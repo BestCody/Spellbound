@@ -55,10 +55,10 @@ return function(S,root)
           (g.result==3 and "DRAW" or (g.result==own and "YOU WIN" or "DEFEAT"))
         out=out..title.."\n"..(shown~="" and shown or "A or B returns to menu")
       else
-        if g and g.incoming[own]>now then title=g.shield[own]>=g.incoming[own] and "SHIELD READY" or "INCOMING! CAST SHIELD"
+        if g and g.incoming[own]>now then title=g.shield[own]>=g.incoming[own] and "SHIELD READY TO BLOCK" or "INCOMING! CAST SHIELD"
         elseif now<S.effect_until and S.effect=="B" then title="BLOCKED"
         elseif S.capture then title="CHANNELING..."
-        elseif S.pending then title="CAST QUEUED"
+        elseif S.pending then title="CAST QUEUED - WAIT"
         elseif g and g.shield[own]>now then title="SHIELD ACTIVE" end
         out=out..title.."\n"..(shown~="" and shown or "Hold A > move > release").."\nB twice surrenders"
       end
