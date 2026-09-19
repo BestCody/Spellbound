@@ -1,22 +1,24 @@
 {
   "version": "0.2.0",
   "package_mode": "modular-lazy",
-  "runtime_files": 13,
-  "runtime_bytes": 34961,
+  "runtime_files": 15,
+  "runtime_bytes": 34490,
   "standalone_import": false,
   "sha256": {
     "app/main.lua": "ff5459bf2ae96071b383c3da4b6535d54678a034dd94190eb2de983175053e25",
-    "app/app.lua": "e0cd9af36aee514f0f67edfe04c57dd4dc1db97163e7d6ca305589b4fdabffed",
+    "app/app.lua": "0a31782d216ef317c8f7edb01752d7a497f58cdf31daf25532221f992a28bdf9",
     "app/core.lua": "d541ddb2deb362ffb816aac3b463be3b59086065c3cc5fff6f1380e05c071880",
-    "app/ui.lua": "396b46f835d84b69214883d129c35dd82e6fba619e8edcd3c397004c507feacf",
-    "app/network.lua": "7242dcc8e23f5ac8727e701819068497d50ba5d61d80dc2bc9b0c66a9df8d9db",
+    "app/ui.lua": "8aac8b14b0a663c75382ef0a38e47775554a7feb78309c710a322264a5f4cb7e",
+    "app/network.lua": "ac737142ebb7a5b5dc0209395e8f0008e774ea66e3b5ff7f6905690798c5d9d9",
     "app/net_rx.lua": "a57a90f738ad62164c00abd184e60e885ee17a2946833c8cb9164a505971fe77",
     "app/net_tick.lua": "f549e8efe8ea12120b30e252fb7b6faa3edf44a37525b8b61628ef684e060db6",
     "app/casting.lua": "520cceebffd4b3b9d4c328f4f30f2e9bab9ef71f0ee87531295769fe50b3d4cb",
-    "app/training.lua": "d5c319dce81c9b51de98f2576e1f5128accb88e0a5ebcb692eeca37739fa9a37",
+    "app/training.lua": "0f226aa81e5b2facfdaf2d4552f5b35bf317641a100a34e532803055c8abe5b7",
     "app/gesture_sig.lua": "b32b300ef7c80257737d39d6387cd7c294a1920cc36f0ae2878d62d1e340348e",
     "app/gesture_dtw.lua": "afbcc8e336be93dc126d3adb9f1f21bd1c468fe17334485de318e476144cafe2",
     "app/engine.lua": "abb056036a16ca0e4eb4c88e33d0988eadb0bf8f13637c83d04671719c20e7b1",
-    "app/manifest.cfg": "4816730573af84cb8b66bd2c7858b7e8e9b63610676b1217d4577c4dfdebddf9"
+    "app/manifest.cfg": "4816730573af84cb8b66bd2c7858b7e8e9b63610676b1217d4577c4dfdebddf9",
+    "app/net_buttons.lua": "ead59c932938f84bc8d35677e09c9acbc1d90a0fd801ef8ccc4b7dd51fe51a30",
+    "app/effects.lua": "4dcdd011c38b99c983a7ad3b1d8efdf3ba04e39c69763cdda2865e8bd76f90a6"
   }
 }
