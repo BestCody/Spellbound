@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_FILES = ("main.lua", "gesture.lua", "engine.lua", "model_codec.lua")
-MODULES = (("gesture", "gesture.lua"), ("engine", "engine.lua"), ("codec", "model_codec.lua"))
+MODULES = (("gesture", "gesture.lua", ("raw_sample", "signature", "distance", "recognize")),\n           ("engine", "engine.lua", ("new_match", "apply", "advance", "pack_state", "unpack_state")),\n           ("codec", "model_codec.lua", ("encode_models", "decode_models")))
 
 
 def validate_manifest(text: str) -> None:
@@ -43,8 +43,13 @@ def production_main(text: str) -> str:
     return text.split("-- TEST_EXPORTS_BEGIN", 1)[0].rstrip() + "\n"
 
 
-def loader(name: str, code: str) -> str:
-    return f"local function __load_{name}()\n{code.rstrip()}\nend\n"
+def loader(name: str, code: str, exports: tuple[str, ...]) -> str:
+    """Wrap a module without allocating its temporary export table at runtime."""
+    code = re.sub(r"\nreturn \{[^\n]+\}\s*$", "", code.rstrip())
+    return (
+        f"local function __load_{name}()\n{code}\n"
+        f"return {','.join(exports)}\nend\n"
+    )
 
 
 def make_standalone(manifest: str, sources: dict[str, str]) -> str:
@@ -52,15 +57,12 @@ def make_standalone(manifest: str, sources: dict[str, str]) -> str:
     replacement = """local function load_components()
   ui_create,label=nil,nil
   badge.sys.gc_step()
-  local g=__load_gesture();__load_gesture=nil
-  raw_sample,signature,distance,recognize=g.raw_sample,g.signature,g.distance,g.recognize
-  g=nil;badge.sys.gc_step()
-  local e=__load_engine();__load_engine=nil
-  new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
-  e=nil;badge.sys.gc_step()
-  local c=__load_codec();__load_codec=nil
-  encode_models,decode_models=c.encode,c.decode
-  c=nil;badge.sys.gc_step()
+  raw_sample,signature,distance,recognize=__load_gesture();__load_gesture=nil
+  badge.sys.gc_step()
+  new_match,apply,advance,pack_state,unpack_state=__load_engine();__load_engine=nil
+  badge.sys.gc_step()
+  encode_models,decode_models=__load_codec();__load_codec=nil
+  badge.sys.gc_step()
 end
 local function save_models"""
     pattern = re.compile(r"local function load_components\(\).*?\nend\nlocal function save_models", re.S)
@@ -68,7 +70,7 @@ local function save_models"""
     if count != 1:
         raise ValueError("Could not replace modular load_components()")
 
-    embedded = "".join(loader(name, sources[file]) for name, file in MODULES)
+    embedded = "".join(loader(name, sources[file], exports)\n                       for name, file, exports in MODULES)
     body = embedded + "\n" + main
 
     # Generated-only cleanup lowers parser/compile pressure while readable src/ stays intact.
