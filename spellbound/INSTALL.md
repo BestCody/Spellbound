@@ -8,9 +8,8 @@ Spellbound now ships as a **true single-file Hacker Badge app**:
 dist/Spellbound-install.lua
 ```
 
-That file contains the manifest, main game, gesture recognizer, duel engine, and
-model codec. You do **not** need to add `gesture.lua`, `engine.lua`, or
-`model_codec.lua` manually in the Badge IDE.
+That file contains the manifest, main game, gesture recognizer, and duel engine.
+You do **not** need to add support modules manually in the Badge IDE.
 
 ## Upload to the first badge
 
@@ -46,7 +45,7 @@ Prove the duel before debugging motion recognition:
 6. UP casts Shield. Verify it blocks an incoming Fireball.
 7. RIGHT casts Recharge. Verify mana increases.
 
-Then press START to return to motion mode and use Practice / Teach.
+Then use **Teach a spell** to record custom gestures, press START to return to motion mode, and test them in a duel.
 
 ## Development layout
 
@@ -56,7 +55,6 @@ Readable source remains modular:
 src/main.lua
 src/gesture.lua
 src/engine.lua
-src/model_codec.lua
 ```
 
 `tools/build.py` generates both:
@@ -86,7 +84,7 @@ Useful read-only console commands are `apps`, `heap`, and `uitree`.
 physical RAM. A single-file build is easier to install but may have a higher
 compile-time peak because all code is parsed in one chunk.
 
-**Gesture fizzles:** verify the duel in button mode first, then train deliberate
+**Gesture fizzles:** verify the duel in button mode first, then use Teach to train deliberate
 0.3-2.4 second movements with a consistent starting pose.
 
 Desktop tests cannot prove ESP32 timing, allocator headroom, radio reliability,
