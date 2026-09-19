@@ -22,7 +22,8 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 - Check each preset in Teach. Expect to personalize gestures; no physical accuracy was measured during generation.
 - Train all three spells with deliberately distinct movements. Use the fourth repetition as validation, then test additional repetitions not used during training.
-- Test random handling, partial movements, stationary A holds, delayed starts after pressing A, slower/faster repetitions, brief mid-gesture pauses, and slightly late releases. Record false casts as well as rejected intended casts.
+- Test random handling, partial movements, stationary A holds, delayed starts after pressing A, slower/faster and gentler/stronger repetitions, brief mid-gesture pauses, slightly late releases, and energetic (>4 g) flicks. Record false casts as well as rejected intended casts.
+- For every failed physical teach/cast, capture the `GESTURE hold=... active=... peak=... rms=...` line and the `GESTURE scores F=... S=... R=... best=... thr=... ratio=...` line. Use those numbers before changing global thresholds.
 - Verify a learned gesture causes the expected effect on the other badge in a real duel.
 - HOME and reopen, then power-cycle. Confirm learned templates persist. Cancel a new training attempt and confirm the old model remains.
 
