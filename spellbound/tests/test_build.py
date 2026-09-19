@@ -47,24 +47,24 @@ class ManifestTests(unittest.TestCase):
         app = (ROOT / "src" / "app.lua").read_text()
         casting = (ROOT / "src" / "casting.lua").read_text()
         network = (ROOT / "src" / "network.lua").read_text()
-        gesture = (ROOT / "src" / "gesture.lua").read_text()
         self.assertIn('install("ui",root)', app)
         self.assertIn('install("network")', app)
-        self.assertIn('install("casting")', app)
+        self.assertIn('require("gesture_sig")', app)
+        self.assertIn('require("gesture_dtw")', app)
+        self.assertIn('require("casting")', app)
+        self.assertIn('require("training")', app)
         self.assertNotIn('require("gesture")', app)
         self.assertNotIn('require("engine")', app)
-        self.assertIn('require("gesture")', casting)
-        self.assertIn('require("training")', casting)
+        self.assertNotIn('require(', casting)
         self.assertIn('require("engine")', network)
         self.assertIn('require("net_rx")', network)
         self.assertIn('require("net_tick")', network)
-        self.assertIn('require("gesture_sig")', gesture)
-        self.assertIn('require("gesture_dtw")', gesture)
+        self.assertFalse((ROOT / "dist" / "app" / "gesture.lua").exists())
+        self.assertNotIn("-- TEST_ONLY_BEGIN", (ROOT / "dist" / "app" / "app.lua").read_text())
 
         lazy = {
             "network.lua", "net_rx.lua", "net_tick.lua", "casting.lua",
-            "training.lua", "gesture.lua", "gesture_sig.lua",
-            "gesture_dtw.lua", "engine.lua",
+            "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua",
         }
         for name in lazy:
             size = len((ROOT / "src" / name).read_bytes())
