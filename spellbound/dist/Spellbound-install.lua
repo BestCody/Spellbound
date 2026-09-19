@@ -8,38 +8,186 @@ wake_lock=1
 version=0.2.0
 ]==]
 
--- IMPORTANT: also add gesture.lua, engine.lua, and model_codec.lua
--- from dist/app to the IDE BEFORE clicking Push. See INSTALL.md.
+local function __load_gesture()
+local floor,min,max,abs=math.floor,math.min,math.max,math.abs
+local SB={nodes=16,max_capture=2400}
+local function clamp(v,a,b) return min(b,max(a,v)) end
+local function round(v) return floor(v+0.5) end
+local function raw_sample(t,x,y,z)
+  return string.char(floor(t/256), t%256,
+    clamp(round(x/32)+128,1,255), clamp(round(y/32)+128,1,255),
+    clamp(round(z/32)+128,1,255))
+end
+local function unpack_sample(s,i)
+  local a,b,x,y,z = s:byte(i,i+4)
+  return a*256+b,(x-128)*32,(y-128)*32,(z-128)*32
+end
+local function signature(raw)
+  local n = #raw/5
+  if n < 8 or n ~= floor(n) then return nil,"Too few motion samples" end
+  local duration = select(1,unpack_sample(raw,#raw-4))
+  if duration < 300 or duration > SB.max_capture then return nil,"Use a 0.3-2.4s movement" end
+  local _,bx,by,bz = unpack_sample(raw,1)
+  local out, j, movement = {}, 1, 0
+  for k=0,SB.nodes-1 do
+    local target = duration*k/(SB.nodes-1)
+    while j < n-1 and select(1,unpack_sample(raw,j*5+1)) < target do j=j+1 end
+    local t,x,y,z = unpack_sample(raw,(j-1)*5+1)
+    local u,a,b,c = unpack_sample(raw,j*5+1)
+    if u <= t then return nil,"Invalid sample timing" end
+    local f=clamp((target-t)/(u-t),0,1)
+    local dx,dy,dz = x+(a-x)*f-bx, y+(b-y)*f-by, z+(c-z)*f-bz
+    movement=max(movement,math.sqrt(dx*dx+dy*dy+dz*dz))
+    out[#out+1]=string.char(clamp(round(dx/50)+128,1,255),
+      clamp(round(dy/50)+128,1,255),clamp(round(dz/50)+128,1,255))
+  end
+  if movement < 260 then return nil,"No clear movement" end
+  return table.concat(out),nil,duration
+end
+local function distance(a,b)
+  if #a ~= 48 or #b ~= 48 then return 99 end
+  local sum=0
+  for i=1,48 do local d=(a:byte(i)-b:byte(i))*0.05; sum=sum+d*d end
+  return math.sqrt(sum/48)
+end
+local function nearest(sig, model)
+  local first,second,id=99,99,nil
+  for s=1,3 do
+    local d=99
+    for _,t in ipairs(model[s]) do d=min(d,distance(sig,t)) end
+    if d<first then second,first,id=first,d,s elseif d<second then second=d end
+  end
+  return id,first,second
+end
+local function preset(sig)
+  local peak,tail,axis,range=0,0,1,0
+  for a=1,3 do
+    local lo,hi=0,0
+    for i=a,48,3 do local v=(sig:byte(i)-128)*0.05;lo=min(lo,v);hi=max(hi,v) end
+    if hi-lo>range then range,axis=hi-lo,a end
+  end
+  local flips,last=0,0
+  for k=0,15 do
+    local i=k*3+1
+    local x,y,z=(sig:byte(i)-128)*0.05,(sig:byte(i+1)-128)*0.05,(sig:byte(i+2)-128)*0.05
+    peak=max(peak,math.sqrt(x*x+y*y+z*z))
+    local v=(sig:byte(k*3+axis)-128)*0.05
+    local sign=v>0.28 and 1 or (v< -0.28 and -1 or 0)
+    if sign~=0 then if last~=0 and sign~=last then flips=flips+1 end;last=sign end
+  end
+  local e1,e2,e3=(sig:byte(46)-128)*0.05,(sig:byte(47)-128)*0.05,(sig:byte(48)-128)*0.05
+  local endpoint=math.sqrt(e1*e1+e2*e2+e3*e3)
+  for i=40,45 do tail=max(tail,abs(sig:byte(i)-sig:byte(46+(i-40)%3))*0.05) end
+  if peak>3.4 then return nil end
+  if flips>=3 and flips<=6 and range>0.85 and endpoint<0.65 then return 3 end
+  if endpoint>0.8 and endpoint<2.15 and tail<0.25 and flips<=1 then return 2 end
+  if flips==1 and range>1.2 and endpoint<0.50 then return 1 end
+end
+local function recognize(sig, model)
+  model=model or {{},{},{}}
+  local id,d,runner=nearest(sig,model)
+  if id and d<=0.42 then
+    if runner-d<0.09 or d>runner*0.78 then return nil,"Ambiguous - try again",d end
+    return id,"Learned gesture",d
+  end
+  local p=preset(sig)
+  if p and #model[p]==0 then return p,"Preset (calibrate for accuracy)",d end
+  return nil,"Fizzle - no clear match",d
+end
 
---[[
-MIT License
+return {raw_sample=raw_sample,signature=signature,distance=distance,recognize=recognize,preset=preset}
+end
+local function __load_engine()
+local min,max=math.min,math.max
+local costs,cooldowns={30,25,0},{2400,2400,3000}
+local function clamp(v,a,b) return min(b,max(a,v)) end
+local function new_match(now)
+  return {hp={100,100},mana={75,75},shield={0,0},incoming={0,0},
+    cd={{0,0,0},{0,0,0}},result=0,ack=0,reply=0,started=now}
+end
+local function advance(g,now)
+  if g.result~=0 then return end
+  for p=1,2 do
+    if g.incoming[p]>0 and now>=g.incoming[p] then
+      if g.shield[p]>=g.incoming[p] then g.shield[p]=0
+      else g.hp[p]=max(0,g.hp[p]-25) end
+      g.incoming[p]=0
+    end
+  end
+  if g.hp[1]==0 and g.hp[2]==0 then g.result=3
+  elseif g.hp[1]==0 then g.result=2 elseif g.hp[2]==0 then g.result=1 end
+end
+local function apply(g,p,spell,number,now)
+  if p==2 and number~=g.ack+1 then return 5 end
+  advance(g,now)
+  local result=0
+  if g.result~=0 then result=4
+  elseif spell==4 then g.result=3-p
+  elseif g.mana[p]<costs[spell] then result=1
+  elseif now<g.cd[p][spell] then result=2
+  elseif spell==1 and g.incoming[3-p]>0 then result=3
+  else
+    g.mana[p]=clamp(g.mana[p]-costs[spell]+(spell==3 and 35 or 0),0,100)
+    g.cd[p][spell]=now+cooldowns[spell]
+    if spell==1 then g.incoming[3-p]=now+1800
+    elseif spell==2 then g.shield[p]=now+2200 end
+  end
+  if p==2 then g.ack,g.reply=number,result end
+  return result
+end
+local function pack_state(g,now)
+  local function rem(t) return clamp(math.ceil(max(0,t-now)/20),0,255) end
+  return string.format("%X%02X%02X%02X%02X%02X%02X%02X%02X%04X%X",
+    g.result,g.hp[1],g.hp[2],g.mana[1],g.mana[2],rem(g.shield[1]),rem(g.shield[2]),
+    rem(g.incoming[1]),rem(g.incoming[2]),g.ack,g.reply)
+end
+local function unpack_state(s,now)
+  if #s~=22 or s:find("[^0-9A-F]") then return nil end
+  local function h(a,b) return tonumber(s:sub(a,b),16) end
+  local g={result=h(1,1),hp={h(2,3),h(4,5)},mana={h(6,7),h(8,9)},
+    shield={now+h(10,11)*20,now+h(12,13)*20},
+    incoming={h(14,15),h(16,17)},ack=h(18,21),reply=h(22,22)}
+  if g.result>4 or g.reply>5 or g.hp[1]>100 or g.hp[2]>100 or g.mana[1]>100 or g.mana[2]>100 then return nil end
+  for p=1,2 do g.incoming[p]=g.incoming[p]>0 and (now+g.incoming[p]*20) or 0 end
+  return g
+end
 
-Copyright (c) 2026 Spellbound contributors
+return {new_match=new_match,apply=apply,advance=advance,pack=pack_state,unpack=unpack_state}
+end
+local function __load_codec()
+local floor=math.floor
+local function checksum(s)
+  local v=0
+  for i=1,#s do v=(v+s:byte(i)*i)%65536 end
+  return string.char(floor(v/256),v%256)
+end
+local function encode_models(model)
+  local parts={"SBG1"}
+  for i=1,3 do
+    parts[#parts+1]=string.char(#model[i])
+    for _,s in ipairs(model[i]) do parts[#parts+1]=s end
+  end
+  local s=table.concat(parts);return s..checksum(s)
+end
+local function decode_models(s)
+  if type(s)~="string" or #s<9 or #s>441 or s:sub(1,4)~="SBG1" then return nil end
+  if checksum(s:sub(1,-3))~=s:sub(-2) then return nil end
+  local result,pos={{},{},{}},5
+  for i=1,3 do
+    local n=s:byte(pos);pos=pos+1
+    if not n or (n~=0 and n~=3) then return nil end
+    for j=1,n do
+      local t=s:sub(pos,pos+47); if #t~=48 then return nil end
+      result[i][j]=t;pos=pos+48
+    end
+  end
+  if pos~=#s-1 then return nil end
+  return result
+end
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+return {encode=encode_models,decode=decode_models}
+end
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-]]
-
--- Spellbound: a foreground two-badge duel for the HTN 2026 Lua API.
--- A: hold / move / release. B: back (twice to surrender). START: control mode.
--- Button mode: LEFT Fireball, UP Shield, RIGHT Recharge. HOME exits.
--- Source is original; no GesturePod/EdgeML code or model is included.
 local floor, min, max, abs = math.floor, math.min, math.max, math.abs
 local MAX_CAPTURE=2400
 local spells = {"Fireball", "Shield", "Recharge"}
@@ -86,7 +234,6 @@ local function split_packet(p)
   if type(p) ~= "string" or #p > 44 then return nil end
   local k,s,d = p:match("^SB1|([IJSKCTPQ])|([0-9A-F]+)|?(.*)$")
   if not k or #s ~= 8 then return nil end
-  -- Reject a missing separator before nonempty data and non-canonical shapes.
   if p ~= "SB1|"..k.."|"..s..(d ~= "" and ("|"..d) or "") then return nil end
   return k,s,d
 end
@@ -95,17 +242,18 @@ local label,ui_create
 local raw_sample,signature,distance,recognize
 local encode_models,decode_models
 local new_match,apply,advance,pack_state,unpack_state
--- Load modules after the main chunk returns, so compiler temporaries can be freed.
 local function load_components()
-  -- Construction is one-shot; release its code before loading game modules.
   ui_create,label=nil,nil
   badge.sys.gc_step()
-  local g=require("gesture")
+  local g=__load_gesture();__load_gesture=nil
   raw_sample,signature,distance,recognize=g.raw_sample,g.signature,g.distance,g.recognize
-  badge.sys.gc_step()
-  local e=require("engine");new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
-  badge.sys.gc_step()
-  local c=require("model_codec");encode_models,decode_models=c.encode,c.decode
+  g=nil;badge.sys.gc_step()
+  local e=__load_engine();__load_engine=nil
+  new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
+  e=nil;badge.sys.gc_step()
+  local c=__load_codec();__load_codec=nil
+  encode_models,decode_models=c.encode,c.decode
+  c=nil;badge.sys.gc_step()
 end
 local function save_models(model)
   local next_slot=1-slot
@@ -158,8 +306,6 @@ local function end_link(reason)
   message(reason,nil,60000)
 end
 
--- A deliberate invitation, then J/S/K handshake. No user identity is broadcast.
--- Peer MAC + fresh session nonce scope the match; this is NOT authentication.
 local function receive(mac,rssi,payload)
   local from=mac_key(mac)
   if not from or from==me then return end
@@ -308,7 +454,6 @@ local function capture_finish(now,too_long)
   end
 end
 
--- Low-widget-count, asset-free UI. All native positions and sizes are integers.
 label=function(root,key,x,y,w,h,size,color)
   local obj=badge.ui.label(root,"")
   obj:set_pos(x,y);obj:set_size(w,h)
@@ -469,7 +614,6 @@ function on_enter(root)
   local loaded=decode_models(badge.fs.read("appdata/gest"..slot..".dat"))
   if not loaded then loaded=decode_models(badge.fs.read("appdata/gest"..(1-slot)..".dat"));if loaded then slot=1-slot end end
   if loaded then models=loaded end
-  -- Leave Bluetooth off until Find a duel; Practice/Teach need no radio.
   diag_since=clock()
   badge.sys.log("Spellbound 0.2.0 | firmware "..tostring(badge.sys.version()))
   render(clock());leds(clock())

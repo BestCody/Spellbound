@@ -61,7 +61,7 @@ function M.new(opts)
   if not cache[name] then cache[name]=assert(loadfile(base.."/"..name..".lua","t",c.env))() end
   return cache[name]
  end
- c.api=assert(loadfile(opts.file or (base.."/main.lua"),"t",c.env))()
+ c.api=(opts.source and assert(load(opts.source,"standalone","t",c.env)) or assert(loadfile(opts.file or (base.."/main.lua"),"t",c.env)))()
  c.root={}
  c.env.on_enter(c.root)
  if type(c.api)=="function" then c.api=c.api() end
