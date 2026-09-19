@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("main.lua", "gesture.lua", "engine.lua")
+RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "casting.lua", "gesture.lua", "engine.lua")
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
 
@@ -54,6 +54,8 @@ def build(check: bool = False) -> None:
         code.encode("ascii")
         if len(code.encode()) > 64 * 1024:
             raise ValueError(f"{name} exceeds 64 KiB")
+        if name == "main.lua" and len(code.encode()) > 2 * 1024:
+            raise ValueError("main.lua must remain a tiny bootstrap under 2 KiB")
         output[ROOT / "dist" / "app" / name] = code.encode()
     output[ROOT / "dist" / "app" / "manifest.cfg"] = manifest.encode()
 
@@ -66,7 +68,7 @@ def build(check: bool = False) -> None:
         "version": next((line.split("=", 1)[1] for line in manifest.splitlines()
                          if line.startswith("version=")), "unknown"),
         "package_mode": "modular",
-        "runtime_files": 4,
+        "runtime_files": len(RUNTIME_FILES) + 1,
         "runtime_bytes": runtime_total,
         "standalone_import": False,
         "sha256": {
@@ -96,7 +98,7 @@ def build(check: bool = False) -> None:
 
     print(
         f"{'Verified' if check else 'Built'} modular app "
-        f"{runtime_total:,} bytes across 4 files."
+        f"{runtime_total:,} bytes across {len(RUNTIME_FILES) + 1} files."
     )
 
 
