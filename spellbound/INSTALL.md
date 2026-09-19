@@ -35,17 +35,16 @@ badge.
 
 ## First hardware test
 
-Prove the duel before debugging motion recognition:
+Teach the gestures first, then test the duel:
 
 1. Open Spellbound on both badges.
-2. Press START to enter button mode.
+2. Open **Teach a spell** and train Fireball, Shield, and Recharge.
 3. Open **Find a duel** on both.
 4. One player sends an invitation; the other accepts.
-5. LEFT casts Fireball. Verify exactly one 25-HP hit after the warning.
-6. UP casts Shield. Verify it blocks an incoming Fireball.
-7. RIGHT casts Recharge. Verify mana increases.
-
-Then use **Teach a spell** to record custom gestures, press START to return to motion mode, and test them in a duel.
+5. Hold A, perform the trained movement, and release to cast.
+6. Verify Fireball causes exactly one 25-HP hit after the warning.
+7. Verify the trained Shield gesture blocks an incoming Fireball.
+8. Verify the trained Recharge gesture restores mana.
 
 ## Development layout
 
@@ -84,7 +83,7 @@ Useful read-only console commands are `apps`, `heap`, and `uitree`.
 physical RAM. A single-file build is easier to install but may have a higher
 compile-time peak because all code is parsed in one chunk.
 
-**Gesture fizzles:** verify the duel in button mode first, then use Teach to train deliberate
+**Gesture fizzles:** use Teach to train deliberate
 0.3-2.4 second movements with a consistent starting pose.
 
 Desktop tests cannot prove ESP32 timing, allocator headroom, radio reliability,

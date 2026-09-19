@@ -22,9 +22,9 @@ Readable modular source remains under `src/`, and `tools/build.py` reproducibly 
 - Host-authoritative health, mana, cooldowns, shields, delayed attacks, surrender, wins, and draws.
 - Sequenced commands, duplicate suppression, state snapshots, acknowledgement retries, and disconnect cancellation.
 - Button-delimited accelerometer capture; compact resampled templates; confidence and ambiguity rejection.
-- Three conservative preset gesture rules; personalized training with three examples and a fourth validation attempt.
+- Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
-- A clearly labelled button-control mode and simplified six-LED spell/damage/victory effects.
+- Simplified six-LED spell/damage/victory effects.
 - Tests, reproducible builds, GitHub Actions configuration, and safe new-repository publishing scripts.
 
 ## Controls
@@ -33,8 +33,6 @@ Readable modular source remains under `src/`, and `tools/build.py` reproducibly 
 |---|---|
 | Menus | UP/DOWN select; A opens; B returns |
 | Motion casting | Hold A, move, release; aim for 0.3–2.4 seconds and a consistent starting pose |
-| Button-control mode | LEFT Fireball; UP Shield; RIGHT Recharge |
-| Switch control mode | START on the home menu or during a duel; the footer shows the active mode |
 | Surrender | Press B twice within 1.8 seconds during a duel |
 | Teach | Select a spell; record three similar examples, then one fresh validation repetition; learned gestures last for the current app session |
 | Exit | HOME; settings are saved and LEDs/radio are cleaned up |
@@ -55,14 +53,14 @@ These are editable design defaults in `src/engine.lua`, not tournament-tested ba
 
 ## First demo
 
-On both badges, open **Find a duel**. One person selects the other badge's short address code and presses A. The other accepts with A. First test the duel in button mode. Then teach distinct custom gestures, switch back to motion mode, and demonstrate them in the duel.
+On both badges, open **Find a duel**. One person selects the other badge's short address code and presses A. The other accepts with A. Teach distinct custom gestures first, then start a duel and cast them by holding A, moving, and releasing.
 
 ## Repository map
 
 ```text
 manifest.cfg                 Runtime settings: API 2, 96 KiB, foreground wake lock
 src/main.lua                 Lifecycle, UI, pairing/radio, capture, training flow
-src/gesture.lua              Motion resampling, default rules, template classifier
+src/gesture.lua              Motion resampling and trained-template classifier
 src/engine.lua               Deterministic game rules and compact state encoding
 dist/app/                    Modular development/runtime copies
 dist/Spellbound-install.lua  Complete one-file Badge IDE import; no extra modules

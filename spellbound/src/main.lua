@@ -24,8 +24,7 @@ SOFTWARE.
 ]]
 
 -- Spellbound: a foreground two-badge duel for the HTN 2026 Lua API.
--- A: hold / move / release. B: back (twice to surrender). START: control mode.
--- Button mode: LEFT Fireball, UP Shield, RIGHT Recharge. HOME exits.
+-- A: hold / move / release. B: back (twice to surrender). HOME exits.
 -- Source is original; no GesturePod/EdgeML code or model is included.
 local floor, min, max, abs = math.floor, math.min, math.max, math.abs
 local MAX_CAPTURE=2400
@@ -41,12 +40,12 @@ local last_rx, next_tx, next_ui, next_led = 0, 0, 0, 0
 local last_state_tx, last_ping, deadline = 0, 0, 0
 local capture, training, models = nil, nil, {{},{},{}}
 local note, note_until, effect, effect_until = "", 0, "", 0
-local buttons, leave_until = false, 0
+local leave_until = 0
 local LED=160
 local radio_started=false
 local widgets, text_cache, visible_phase = {}, {}, nil
 local next_gc = 0
-local stats_dirty, locally_ended = false, false
+local locally_ended = false
 
 local function clamp(v,a,b) return min(b,max(a,v)) end
 local function round(v) return floor(v+0.5) end
@@ -323,7 +322,7 @@ local function render(now)
   local shown=now<note_until and note or ""
   local hint,footer="","UP/DOWN select  A open  B back"
   text("title","SPELLBOUND")
-  text("status",string.upper(phase:gsub("_"," ")).." / "..(buttons and "BUTTONS" or "MOTION").." / "..me:sub(-4))
+  text("status",string.upper(phase:gsub("_"," ")).." / MOTION / "..me:sub(-4))
   if duel then
     if g then
       for i=1,2 do
@@ -342,8 +341,8 @@ local function render(now)
       elseif capture then title="CHANNELING..."
       elseif pending then title="CAST QUEUED - WAIT"
       elseif g and g.shield[own]>now then title="SHIELD ACTIVE" end
-      footer=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A > move > release"
-      hint="FIRE 30  SHIELD 25  MANA +35\nSTART controls. B twice surrenders."
+      footer="Hold A > move > release"
+      hint="FIRE 30  SHIELD 25  MANA +35\nTeach spells first. B twice surrenders."
     end
     text("effect",title)
   else
@@ -351,14 +350,14 @@ local function render(now)
     if phase=="home" or phase=="lobby" or phase=="train_select" then
       local items=phase=="home" and {"Find a duel","Teach a spell"} or {}
       if phase=="lobby" then for i,p in ipairs(peers) do items[i]="Badge "..p.id:sub(-4) end end
-      if phase=="train_select" then for i=1,3 do items[i]=spells[i]..(#models[i]>0 and " [learned]" or " [preset]") end end
+      if phase=="train_select" then for i=1,3 do items[i]=spells[i]..(#models[i]>0 and " [learned]" or " [untrained]") end end
       for i,t in ipairs(items) do body=body..(i==selected and "> " or "  ")..t.."\n" end
       if phase=="lobby" then
         hint="Your radio code: "..me:sub(-4).."\nOne player sends the invitation."
         if #peers==0 then body="Searching...\nBoth badges: Find a duel.\nKeep badges nearby." end
       elseif phase=="home" then
-        hint="Radio "..(radio_ok and "ON" or "OFF").."\nHOME saves control mode and exits"
-        footer="A open   START changes controls"
+        hint="Radio "..(radio_ok and "ON" or "OFF").."\nTeach spells before motion casting"
+        footer="A open   B back"
       else hint="Three examples, then a fresh test. Session only." end
     elseif phase=="offer" then body="Challenge from "..invite.peer:sub(-4).."\n\nAccept this player?";footer="A accepts   B declines"
     elseif phase=="waiting" then body="Invitation queued.\nWaiting for opponent to accept.";footer="B cancels"
@@ -416,7 +415,6 @@ function on_enter(root)
   ui_create(root)
   load_components()
   me=mac_key(badge.radio.mac()) or "000000000000"
-  buttons=badge.store.get_int("buttons",0)==1
   -- Leave Bluetooth off until Find a duel; Teach needs no radio.
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
   render(clock());leds(clock())
@@ -437,11 +435,6 @@ function on_button(button,kind)
   local now=clock()
   if button==B.A and kind==K.RELEASED then capture_finish(now,false);return end
   if kind~=K.PRESSED then return end
-  if button==B.START and (phase=="home" or phase=="duel") then
-    if capture then capture=nil end
-    effect,effect_until="",0
-    buttons=not buttons;stats_dirty=true;message(buttons and "Button controls enabled" or "Motion controls enabled");return
-  end
   if button==B.B then
     capture=nil
     if phase=="duel" then
@@ -487,14 +480,11 @@ function on_button(button,kind)
   elseif phase=="teach" then
     if button==B.A and not capture then capture_start(now) end
   elseif phase=="duel" then
-    if buttons then
-      if button==B.LEFT then submit(1) elseif button==B.UP then submit(2) elseif button==B.RIGHT then submit(3) end
-    elseif button==B.A and not capture then capture_start(now) end
+    if button==B.A and not capture then capture_start(now) end
   elseif phase=="result" and button==B.A then reset_home() end
 end
 function on_exit()
   if sid then transmit("Q") end
-  if stats_dirty then badge.store.set_int("buttons",buttons and 1 or 0) end
   badge.radio.on_recv(nil);badge.radio.disable()
   badge.led.clear();badge.led.show()
 end
@@ -502,8 +492,7 @@ end
 -- TEST_EXPORTS_BEGIN
 -- Test-only exports. SPELLBOUND_TEST is never defined by the badge runtime.
 if SPELLBOUND_TEST then
-  return function() return {signature=signature,distance=distance,recognize=recognize,preset=require("gesture").preset,
-    raw_sample=raw_sample,new_match=new_match,apply=apply,advance=advance,
+  return function() return {signature=signature,distance=distance,recognize=recognize,raw_sample=raw_sample,new_match=new_match,apply=apply,advance=advance,
     pack_state=pack_state,unpack_state=unpack_state,split_packet=split_packet,
     receive=receive,submit=submit,
     state=function() return {phase=phase,role=role,match=match,view=view,pending=pending,

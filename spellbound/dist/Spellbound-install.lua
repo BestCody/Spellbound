@@ -9,7 +9,7 @@ version=0.2.0
 ]==]
 
 local function __load_gesture()
-local floor,min,max,abs=math.floor,math.min,math.max,math.abs
+local floor,min,max=math.floor,math.min,math.max
 local SB={nodes=16,max_capture=2400}
 local function clamp(v,a,b) return min(b,max(a,v)) end
 local function round(v) return floor(v+0.5) end
@@ -59,39 +59,14 @@ local function nearest(sig, model)
   end
   return id,first,second
 end
-local function preset(sig)
-  local peak,tail,axis,range=0,0,1,0
-  for a=1,3 do
-    local lo,hi=0,0
-    for i=a,48,3 do local v=(sig:byte(i)-128)*0.05;lo=min(lo,v);hi=max(hi,v) end
-    if hi-lo>range then range,axis=hi-lo,a end
-  end
-  local flips,last=0,0
-  for k=0,15 do
-    local i=k*3+1
-    local x,y,z=(sig:byte(i)-128)*0.05,(sig:byte(i+1)-128)*0.05,(sig:byte(i+2)-128)*0.05
-    peak=max(peak,math.sqrt(x*x+y*y+z*z))
-    local v=(sig:byte(k*3+axis)-128)*0.05
-    local sign=v>0.28 and 1 or (v< -0.28 and -1 or 0)
-    if sign~=0 then if last~=0 and sign~=last then flips=flips+1 end;last=sign end
-  end
-  local e1,e2,e3=(sig:byte(46)-128)*0.05,(sig:byte(47)-128)*0.05,(sig:byte(48)-128)*0.05
-  local endpoint=math.sqrt(e1*e1+e2*e2+e3*e3)
-  for i=40,45 do tail=max(tail,abs(sig:byte(i)-sig:byte(46+(i-40)%3))*0.05) end
-  if peak>3.4 then return nil end
-  if flips>=3 and flips<=6 and range>0.85 and endpoint<0.65 then return 3 end
-  if endpoint>0.8 and endpoint<2.15 and tail<0.25 and flips<=1 then return 2 end
-  if flips==1 and range>1.2 and endpoint<0.50 then return 1 end
-end
 local function recognize(sig, model)
   model=model or {{},{},{}}
   local id,d,runner=nearest(sig,model)
-  if id and d<=0.42 then
+  if not id then return nil,"Teach this spell first",d end
+  if d<=0.42 then
     if runner-d<0.09 or d>runner*0.78 then return nil,"Ambiguous - try again",d end
     return id,"Learned gesture",d
   end
-  local p=preset(sig)
-  if p and #model[p]==0 then return p,"Preset (calibrate for accuracy)",d end
   return nil,"Fizzle - no clear match",d
 end
 
@@ -169,12 +144,12 @@ local last_rx, next_tx, next_ui, next_led = 0, 0, 0, 0
 local last_state_tx, last_ping, deadline = 0, 0, 0
 local capture, training, models = nil, nil, {{},{},{}}
 local note, note_until, effect, effect_until = "", 0, "", 0
-local buttons, leave_until = false, 0
+local leave_until = 0
 local LED=160
 local radio_started=false
 local widgets, text_cache, visible_phase = {}, {}, nil
 local next_gc = 0
-local stats_dirty, locally_ended = false, false
+local locally_ended = false
 
 local function clamp(v,a,b) return min(b,max(a,v)) end
 local function round(v) return floor(v+0.5) end
@@ -444,7 +419,7 @@ local function render(now)
   local shown=now<note_until and note or ""
   local hint,footer="","UP/DOWN select  A open  B back"
   text("title","SPELLBOUND")
-  text("status",string.upper(phase:gsub("_"," ")).." / "..(buttons and "BUTTONS" or "MOTION").." / "..me:sub(-4))
+  text("status",string.upper(phase:gsub("_"," ")).." / MOTION / "..me:sub(-4))
   if duel then
     if g then
       for i=1,2 do
@@ -463,8 +438,8 @@ local function render(now)
       elseif capture then title="CHANNELING..."
       elseif pending then title="CAST QUEUED - WAIT"
       elseif g and g.shield[own]>now then title="SHIELD ACTIVE" end
-      footer=buttons and "LEFT fire  UP shield  RIGHT mana" or "Hold A > move > release"
-      hint="FIRE 30  SHIELD 25  MANA +35\nSTART controls. B twice surrenders."
+      footer="Hold A > move > release"
+      hint="FIRE 30  SHIELD 25  MANA +35\nTeach spells first. B twice surrenders."
     end
     text("effect",title)
   else
@@ -472,14 +447,14 @@ local function render(now)
     if phase=="home" or phase=="lobby" or phase=="train_select" then
       local items=phase=="home" and {"Find a duel","Teach a spell"} or {}
       if phase=="lobby" then for i,p in ipairs(peers) do items[i]="Badge "..p.id:sub(-4) end end
-      if phase=="train_select" then for i=1,3 do items[i]=spells[i]..(#models[i]>0 and " [learned]" or " [preset]") end end
+      if phase=="train_select" then for i=1,3 do items[i]=spells[i]..(#models[i]>0 and " [learned]" or " [untrained]") end end
       for i,t in ipairs(items) do body=body..(i==selected and "> " or "  ")..t.."\n" end
       if phase=="lobby" then
         hint="Your radio code: "..me:sub(-4).."\nOne player sends the invitation."
         if #peers==0 then body="Searching...\nBoth badges: Find a duel.\nKeep badges nearby." end
       elseif phase=="home" then
-        hint="Radio "..(radio_ok and "ON" or "OFF").."\nHOME saves control mode and exits"
-        footer="A open   START changes controls"
+        hint="Radio "..(radio_ok and "ON" or "OFF").."\nTeach spells before motion casting"
+        footer="A open   B back"
       else hint="Three examples, then a fresh test. Session only." end
     elseif phase=="offer" then body="Challenge from "..invite.peer:sub(-4).."\n\nAccept this player?";footer="A accepts   B declines"
     elseif phase=="waiting" then body="Invitation queued.\nWaiting for opponent to accept.";footer="B cancels"
@@ -537,7 +512,6 @@ function on_enter(root)
   ui_create(root)
   load_components()
   me=mac_key(badge.radio.mac()) or "000000000000"
-  buttons=badge.store.get_int("buttons",0)==1
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
   render(clock());leds(clock())
 end
@@ -557,11 +531,6 @@ function on_button(button,kind)
   local now=clock()
   if button==B.A and kind==K.RELEASED then capture_finish(now,false);return end
   if kind~=K.PRESSED then return end
-  if button==B.START and (phase=="home" or phase=="duel") then
-    if capture then capture=nil end
-    effect,effect_until="",0
-    buttons=not buttons;stats_dirty=true;message(buttons and "Button controls enabled" or "Motion controls enabled");return
-  end
   if button==B.B then
     capture=nil
     if phase=="duel" then
@@ -607,14 +576,11 @@ function on_button(button,kind)
   elseif phase=="teach" then
     if button==B.A and not capture then capture_start(now) end
   elseif phase=="duel" then
-    if buttons then
-      if button==B.LEFT then submit(1) elseif button==B.UP then submit(2) elseif button==B.RIGHT then submit(3) end
-    elseif button==B.A and not capture then capture_start(now) end
+    if button==B.A and not capture then capture_start(now) end
   elseif phase=="result" and button==B.A then reset_home() end
 end
 function on_exit()
   if sid then transmit("Q") end
-  if stats_dirty then badge.store.set_int("buttons",buttons and 1 or 0) end
   badge.radio.on_recv(nil);badge.radio.disable()
   badge.led.clear();badge.led.show()
 end
