@@ -4,9 +4,9 @@ This pass applies the supplied **Agent instructions: create a Hacker Badge app i
 
 ## Display and interaction
 
-The app still uses only documented widgets at integer positions on a 320x240 screen. After physical logs showed only ~11.9 KiB system heap remaining behind the 18-widget home screen, the UI was first reduced to 9 widgets and is now reduced further to **5 native widgets** reused across every phase. There are no external images, canvas calls, touch handlers, or audio features.
+The app still uses only documented widgets at integer positions on a 320x240 screen. After physical logs showed only ~11.9 KiB system heap remaining behind the 18-widget home screen, the UI was first reduced to 9 widgets, then 5, and is now a **3-widget** startup surface (background, text, capture bar). There are no external images, canvas calls, touch handlers, or audio features.
 
-The duel keeps **YOU HP / FOE HP** and **MANA** visible as compact text. The remaining HP bars were removed because physical measurements showed resident Lua/module memory, not native widget objects, was now the limiting resource; incoming attacks remain explicit in text and LED effects.
+The duel keeps **YOU HP / FOE HP** and **MANA** visible as compact text; its input state machine and LED effects now live in duel-only modules rather than the resident startup UI/coordinator. The remaining HP bars were removed because physical measurements showed resident Lua/module memory, not native widget objects, was now the limiting resource; incoming attacks remain explicit in text and LED effects.
 
 Header/status share one label, and action/help/footer share one multi-line label. A spell result or error still preserves the essential physical-button instruction while avoiding separate native labels for each region.
 
@@ -50,7 +50,7 @@ Do not merge or demonstrate on the strength of the desktop memory number alone. 
 
 ## Packaging and validation
 
-The slug remains `spellbound`. The physical package contains 13 files in `dist/app/`: `manifest.cfg` plus 12 Lua modules. The build enforces a sub-2 KiB production `main.lua`, a 4 KiB ceiling for lazy Lua chunks, the documented 16-file Share cap, and the 48 KiB total Share cap.
+The slug remains `spellbound`. The physical package contains 15 files in `dist/app/`: `manifest.cfg` plus 14 Lua modules. The build enforces a sub-2 KiB production `main.lua`, a 4 KiB ceiling for lazy Lua chunks, the documented 16-file Share cap, and the 48 KiB total Share cap.
 
 The lazy modular installation is the canonical competition build. Physical testing showed both the flattened importer and the earlier ~22 KiB `main.lua` layout could exhaust Lua allocation headroom while loading another chunk. The Badge IDE Files panel must therefore contain every runtime module alongside the tiny `main.lua`; Import app is not used to add those modules.
 
