@@ -4,17 +4,17 @@
 
 Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. Two badges run a host-authoritative match over the badge's restricted nearby radio channel. No phone, cloud account, external server, replacement firmware, microphone, or extra hardware is required by this implementation.
 
-**Implementation status:** complete source and desktop tests are included. `dist/Spellbound-install.lua` is a true single-file Badge IDE import. The app still needs physical validation for ESP32 memory/timing, rendering, radio reliability, and real gesture accuracy.
+**Implementation status:** complete source and desktop tests are included. The physical competition build is the four-file modular package in `dist/app/`. The app still needs physical validation for ESP32 memory/timing, rendering, radio reliability, and real gesture accuracy.
 
 ## Design pass 0.2.0
 
-The badge-native pass adds clearer health/mana hierarchy, a separate notification area and control footer, shield/pending-command feedback, physically mapped LED effects with an off option, and lazy radio startup. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates. This is still a five-file app.
+The badge-native pass adds clearer health/mana hierarchy, a separate notification area and control footer, shield/pending-command feedback, physically mapped LED effects with an off option, and lazy radio startup. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates.
 
 ## Start here
 
-Use the prebuilt **`dist/Spellbound-install.lua`**; building on your computer is optional. Read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. The installer embeds the manifest and all runtime modules, so it can be selected directly with **Import app** and pushed without manually creating support files.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. The app intentionally remains modular: `main.lua` loads `gesture.lua` and `engine.lua` separately to reduce peak Lua compile/startup pressure on the physical badge.
 
-Readable modular source remains under `src/`, and `tools/build.py` reproducibly generates both `dist/app/` and the standalone installer. Because the standalone app is compiled as one Lua chunk, physical memory validation remains important.
+Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
 ## Implemented
 
@@ -35,7 +35,7 @@ Readable modular source remains under `src/`, and `tools/build.py` reproducibly 
 | Motion casting | Hold A, move, release; aim for 0.3–2.4 seconds and a consistent starting pose |
 | Surrender | Press B twice within 1.8 seconds during a duel |
 | Teach | Select a spell; record three similar examples, then one fresh validation repetition; learned gestures last for the current app session |
-| Exit | HOME; settings are saved and LEDs/radio are cleaned up |
+| Exit | HOME; LEDs/radio are cleaned up |
 
 Use controlled handheld movements. Do not swing a badge by its lanyard. A rejected gesture consumes no mana and sends no cast. Accepted gestures can still be rejected by the host for insufficient mana or a cooldown.
 
@@ -53,23 +53,22 @@ These are editable design defaults in `src/engine.lua`, not tournament-tested ba
 
 ## First demo
 
-On both badges, open **Find a duel**. One person selects the other badge's short address code and presses A. The other accepts with A. Teach distinct custom gestures first, then start a duel and cast them by holding A, moving, and releasing.
+On both badges, teach distinct custom gestures first. Then open **Find a duel** on both badges. One person selects the other badge's short address code and presses A; the other accepts with A. Cast by holding A, moving, and releasing.
 
 ## Repository map
 
 ```text
-manifest.cfg                 Runtime settings: API 2, 96 KiB, foreground wake lock
-src/main.lua                 Lifecycle, UI, pairing/radio, capture, training flow
-src/gesture.lua              Motion resampling and trained-template classifier
-src/engine.lua               Deterministic game rules and compact state encoding
-dist/app/                    Modular development/runtime copies
-dist/Spellbound-install.lua  Complete one-file Badge IDE import; no extra modules
-dist/Badge-check.lua         Optional standalone sensor/radio diagnostic
-tests/                       Strict API mock and real-Lua automated tests
-tools/build.py               Reproducible packaging (Python 3.10+, no dependencies)
-tools/publish.ps1            Create/push a new GitHub repository from Windows
-tools/publish.sh             Equivalent Bash publishing script
-docs/                        Protocol, recognition, testing, and provenance
+manifest.cfg          Runtime settings: API 2, 96 KiB, foreground wake lock
+src/main.lua          Lifecycle, UI, pairing/radio, capture, training flow
+src/gesture.lua       Motion resampling and trained-template classifier
+src/engine.lua        Deterministic game rules and compact state encoding
+dist/app/             Four-file modular physical/runtime package
+dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
+tests/                Strict API mock and real-Lua automated tests
+tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)
+tools/publish.ps1     Create/push a new GitHub repository from Windows
+tools/publish.sh      Equivalent Bash publishing script
+docs/                 Protocol, recognition, testing, and provenance
 ```
 
 ## Develop and test
@@ -85,7 +84,7 @@ lua tests/checker_smoke.lua
 python tools/build.py --check
 ```
 
-Use `lua5.4` or `texlua` in place of `lua` where appropriate. On Linux, an alternative with an installed Lua 5.4 shared library is `python tools/lua54_runner.py tests/run.lua`. None of these desktop tools are required to install the prebuilt app through the badge IDE.
+Use `lua5.4` or `texlua` in place of `lua` where appropriate. On Linux, an alternative with an installed Lua 5.4 shared library is `python tools/lua54_runner.py tests/run.lua`.
 
 ## Publish to GitHub
 
