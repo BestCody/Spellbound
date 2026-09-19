@@ -558,7 +558,7 @@ end
 function on_exit()
   if sid then transmit("Q") end
   if stats_dirty then badge.store.set_int("buttons",buttons and 1 or 0);badge.store.set_int("brightness",brightness) end
-  if radio_started then badge.radio.on_recv(nil);badge.radio.disable() end
+  badge.radio.on_recv(nil);badge.radio.disable()
   badge.led.clear();badge.led.show()
 end
 
