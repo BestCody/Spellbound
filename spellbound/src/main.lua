@@ -234,7 +234,7 @@ local function network_tick(now)
       if match.hp[1]<hp then effect,effect_until="D",now+700
       elseif attack>0 and match.incoming[1]==0 and match.result==0 then effect,effect_until="B",now+700 end
       if match.result~=0 then phase,capture="result",nil end
-      if now-last_state_tx>=300 then send_state(now) end
+      if now-last_state_tx>=200 then send_state(now) end
     elseif role=="guest" then
       if now-last_ping>=750 then transmit("P");last_ping=now end
       if pending and now>=pending.next then
