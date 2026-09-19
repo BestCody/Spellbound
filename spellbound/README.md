@@ -6,9 +6,9 @@ Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. T
 
 **Implementation status:** complete source and desktop tests are included. The physical competition build is the lazy modular package in `dist/app/`, with a sub-1 KiB production `main.lua` bootstrap and feature modules loaded only when needed. Hardware logs have exercised startup, but the app still needs end-to-end physical validation for memory/timing, rendering, radio reliability, and real gesture accuracy.
 
-## Design pass 0.4.0
+## Design pass 0.4.1
 
-The badge-native pass adds clearer health/mana hierarchy, a separate notification area and control footer, shield/pending-command feedback, physically mapped LED effects with an off option, and radio-first startup for native Bluetooth allocation headroom. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates.
+The badge-native pass adds clearer health/mana hierarchy, shield/pending-command feedback, physically mapped LED effects, radio-first Bluetooth startup, and a production-only memory pass that compacts phase/role state and reuses transient multiplayer fields without changing the controls or flow. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates.
 
 ## Start here
 

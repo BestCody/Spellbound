@@ -6,6 +6,7 @@ and are regression signals, not physical ESP32 measurements.
 """
 from __future__ import annotations
 
+import argparse
 import gc
 import json
 import os
@@ -117,9 +118,13 @@ def minimum_cap(stage: str) -> int:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--max-match-delta", type=int,
+                        help="fail when the desktop allocator cap increase from Home exceeds this many bytes")
+    args = parser.parse_args()
     current = snapshots()
     caps = {stage: minimum_cap(stage) for stage in STAGES}
-    print(json.dumps({
+    report = {
         "scope": "64-bit desktop Lua 5.4 with Lua badge mock; not an ESP32 measurement",
         "steady_bytes": current,
         "steady_above_harness_bytes": {
@@ -129,7 +134,14 @@ def main() -> None:
         "cap_increase_from_home_bytes": {
             stage: caps[stage] - caps["home"] for stage in STAGES
         },
-    }, indent=2))
+    }
+    print(json.dumps(report, indent=2))
+    delta = report["cap_increase_from_home_bytes"]["match"]
+    if args.max_match_delta is not None and delta > args.max_match_delta:
+        raise SystemExit(
+            f"trained-match allocator delta {delta:,} exceeds regression budget "
+            f"{args.max_match_delta:,}"
+        )
 
 
 if __name__ == "__main__":

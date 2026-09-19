@@ -1,4 +1,4 @@
-if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
+if SPELLBOUND_STATE[4]~=4 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
 local floor,min,max,sqrt=math.floor,math.min,math.max,math.sqrt
 local N,B,RQ,FQ=16,5,64,32
@@ -72,4 +72,4 @@ out=out..string.char(q(x+(u-x)*f),q(y+(v-y)*f),q(z+(w-z)*f))
 end
 return out
 end
-S[56],S[67]=raw_sample,signature
+S[51],S[62]=raw_sample,signature

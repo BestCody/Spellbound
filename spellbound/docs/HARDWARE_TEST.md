@@ -33,7 +33,7 @@ Start with a successful motion-controlled duel and demonstrate a newly taught ge
 
 Keep a copy of the prebuilt modular app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
 
-## Design pass 0.4.0 acceptance
+## Design pass 0.4.1 acceptance
 
 - On a fresh app launch, verify Bluetooth initializes once before the Home screen and before `app.lua` is compiled. Then check Home/Teach and open Find a duel for discovery/acceptance. There must be no `BLE_INIT: Malloc failed`, `hci inits failed`, `nimble host init failed`, or `ESP_ERR_NO_MEM` line.
 - Check OFF/64/160/255 LED effects use a fixed competition brightness.

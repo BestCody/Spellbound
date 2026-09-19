@@ -1,13 +1,12 @@
 -- Side-effect radio coordinator and multiplayer buttons. Network state allocates only on first duel.
 local S=SPELLBOUND_STATE
 S.peers=S.peers or {}
-S.radio_started=S.radio_started or false
 function S.end_link(reason)
   S.locally_ended=true
   if S.match then S.match[1]=4 end
   if S.view then S.view[1]=4 end
   S.phase,S.pending,S.capture="result",nil,nil
-  S.effect,S.effect_until="",0
+  S.effect,S.effect_until=0,0
   S.message(reason,nil,60000)
 end
 function S.transmit(kind,data)
@@ -32,13 +31,13 @@ function S.send_state(now)
 end
 function S.feedback(code,spell)
   if code==0 then
-    S.message(spell==4 and "You surrendered" or (S.spells[spell].." cast"),spell==4 and nil or S.codes[spell])
+    S.message(spell==4 and "You surrendered" or (S.spells[spell].." cast"),spell==4 and nil or spell)
   else
     local m=code==1 and "Not enough mana" or
       (code==2 and "Spell cooling down" or
       (code==3 and "Attack already in flight" or
       (code==4 and "Match finished" or "Out-of-order action")))
-    S.message(m,"X")
+    S.message(m,4)
   end
 end
 function S.submit(spell)
@@ -55,36 +54,37 @@ end
 function S.net_button(button,kind,now)
   local B,K=badge.input.BUTTON,badge.input.KIND
   if kind~=K.PRESSED then return end
+  local phase=S.phase
   if button==B.B then
     S.capture=nil
-    if S.phase=="duel" then
-      if now<(S.leave_until or 0) then S.submit(4);S.leave_until=0
-      else S.leave_until=now+1800;S.message("Press B again to surrender",nil,1800) end
-    elseif S.phase=="offer" then
-      S.declined,S.declined_until=S.invite[1]..S.invite[2],now+14000
+    if phase=="duel" then
+      if now<(S.deadline or 0) then S.submit(4);S.deadline=0
+      else S.deadline=now+1800;S.message("Press B again to surrender",nil,1800) end
+    elseif phase=="offer" then
+      S.declined,S.deadline=S.invite[1]..S.invite[2],now+14000
       badge.radio.send("SB1|Q|"..S.invite[2]);S.invite=nil;S.phase="lobby"
-    elseif S.phase=="result" then S.reset_home()
+    elseif phase=="result" then S.reset_home()
     else
-      if S.sid and S.phase~="result" then S.transmit("Q") end
+      if S.sid and phase~="result" then S.transmit("Q") end
       S.reset_home()
     end
     return
   end
-  if S.phase=="lobby" then
+  if phase=="lobby" then
     if button==B.UP then S.selected=math.max(1,S.selected-1)
     elseif button==B.DOWN then S.selected=math.min(math.max(1,#S.peers/3),S.selected+1)
     elseif button==B.A and S.peers[(S.selected-1)*3+1] then
       if S.ensure_engine then S.ensure_engine() end
-      S.peer=S.peers[(S.selected-1)*3+1];S.sid=string.format("%08X",badge.sys.random())
+      S.peer=S.peers[(S.selected-1)*3+1];S.peers=nil;S.sid=string.format("%08X",badge.sys.random())
       S.role,S.phase,S.deadline,S.last_rx,S.next_tx="host","waiting",now+12000,now,0
-      S.seq,S.revision,S.last_revision=0,0,-1;S.locally_ended=false
+      S.seq,S.revision=0,0;S.locally_ended=false
     end
-  elseif S.phase=="offer" and button==B.A then
+  elseif phase=="offer" and button==B.A then
     if S.ensure_engine then S.ensure_engine() end
-    S.peer,S.sid=S.invite[1],S.invite[2];S.invite=nil
+    S.peer,S.sid=S.invite[1],S.invite[2];S.invite,S.peers=nil,nil
     S.role,S.phase,S.deadline,S.last_rx,S.next_tx="guest","joining",now+12000,now,0
-    S.seq,S.revision,S.last_revision=0,0,-1;S.locally_ended=false
-  elseif S.phase=="duel" and button==B.A and not S.capture then
-    if S.capture_start then S.capture_start(now) else S.message("Teach spells before duel","X") end
-  elseif S.phase=="result" and button==B.A then S.reset_home() end
+    S.seq,S.revision=0,-1;S.locally_ended=false
+  elseif phase=="duel" and button==B.A and not S.capture then
+    if S.capture_start then S.capture_start(now) else S.message("Teach spells before duel",4) end
+  elseif phase=="result" and button==B.A then S.reset_home() end
 end

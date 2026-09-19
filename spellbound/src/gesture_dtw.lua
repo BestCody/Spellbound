@@ -14,7 +14,8 @@ local function distance(a,b)
     local lo,hi=max(1,i-BAND),min(N,i+BAND)
     for j=lo,hi do
       local k=j-i+BAND+1
-      local x=(i-1)*3+1;local y=(j-1)*3+1
+      local x=(i-1)*3+1
+      local y=(j-1)*3+1
       local p=(a:byte(x)-b:byte(y))/FQ
       local q=(a:byte(x+1)-b:byte(y+1))/FQ
       local r=(a:byte(x+2)-b:byte(y+2))/FQ
@@ -24,14 +25,11 @@ local function distance(a,b)
   end
   return sqrt(prev[BAND+1]/N)
 end
-local function class_score(sig,t)
-  return t and t[1] and distance(sig,t[1]) or 99
-end
 local function recognize(sig,model)
-  model=model or {{},{},{}}
+  model=model or {}
   local best,bd,rd=nil,99,99
   for s=1,3 do
-    local d=class_score(sig,model[s])
+    local d=model[s] and distance(sig,model[s]) or 99
     if d<bd then rd=bd;best,bd=s,d elseif d<rd then rd=d end
   end
   if not best or bd>=99 then return nil,"Teach this spell first",bd end

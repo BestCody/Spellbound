@@ -2,11 +2,11 @@
 local APP={}
 SPELLBOUND_APP=APP
 local S={}
-S.build_id=3
+S.build_id=4
 S.MAX_CAPTURE=4500
-S.spells,S.codes={"Fireball","Shield","Recharge"},{"F","S","R"}
+S.spells,S.codes={"Fireball","Shield","Recharge"},"FSR"
 S.phase,S.selected,S.me,S.radio_ok="home",1,"",false
-S.note,S.note_until,S.effect,S.effect_until="",0,"",0
+S.note,S.note_until,S.effect,S.effect_until="",0,0,0
 S.next_ui,S.next_led,S.next_gc,S.last_screen=0,0,0,nil
 SPELLBOUND_STATE=S
 local root,label
@@ -28,11 +28,11 @@ function S.reset_home()
   S.capture,S.training=nil,nil
   S.role,S.peer,S.sid,S.match,S.pending,S.view,S.invite=nil,nil,nil,nil,nil,nil,nil
   S.peers=nil
-  S.seq,S.revision,S.last_revision=0,0,-1
-  S.next_tx,S.leave_until,S.locally_ended=0,0,false
-  S.last_rx,S.last_state_tx,S.last_ping,S.deadline=0,0,0,0
-  S.declined,S.declined_until=nil,0
-  S.note,S.note_until,S.effect,S.effect_until="",0,"",0
+  S.seq,S.revision=0,0
+  S.next_tx,S.locally_ended=0,false
+  S.last_rx,S.last_state_tx,S.deadline=0,0,0
+  S.declined=nil
+  S.note,S.note_until,S.effect,S.effect_until="",0,0,0
   S.last_screen=nil
 end
 function S.destroy_ui()
@@ -49,7 +49,9 @@ end
 function S.render(now)
   if not label then return end
   local shown=now<S.note_until and S.note or ""
-  local out="SPELLBOUND / "..string.upper(S.phase:gsub("_"," ")).." / "..S.me:sub(-4).."\n\n"
+  local section=S.phase=="home" and "HOME" or
+    ((S.phase=="train_select" or S.phase=="teach") and "TEACH" or "DUEL")
+  local out="SPELLBOUND / "..section.." / "..S.me:sub(-4).."\n\n"
   if S.phase=="home" then
     out=out..(S.selected==1 and "> " or "  ").."Find a duel\n"..
       (S.selected==2 and "> " or "  ").."Teach a spell\n\n"..
@@ -104,14 +106,14 @@ local function duel()
     S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
     S.mode_button,S.mode_render=S.net_button,S.net_render
   else
-    S.phase="home";S.message("Radio unavailable; HOME then reopen","X")
+    S.phase="home";S.message("Radio unavailable; HOME then reopen",4)
   end
   if not label then rebuild() else S.render(S.clock()) end
 end
 local function enter(r,radio_ready)
-  root=r;S.radio_started=radio_ready==true;S.create_ui(r)
+  root=r;S.create_ui(r)
   S.me=S.mac_key(badge.radio.mac()) or "000000000000"
-  S.radio_ok=S.radio_started and S.me~="000000000000"
+  S.radio_ok=radio_ready==true and S.me~="000000000000"
   local now=S.clock();S.render(now);badge.led.clear();badge.led.show()
 end
 local function tick()
@@ -137,7 +139,7 @@ end
 local function exit()
   if S.sid and S.transmit then S.transmit("Q") end
   badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
-  S.radio_started,S.radio_ok=false,false
+  S.radio_ok=false
 end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
 -- TEST_ONLY_BEGIN

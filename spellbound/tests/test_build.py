@@ -107,6 +107,17 @@ class MemoryArchitectureTests(unittest.TestCase):
         self.assertNotIn("S.network_tick", output)
         self.assertNotIn("S.handle_signature", output)
         self.assertIn("S[", output)
+        for value in mod["RUNTIME_ENUMS"]:
+            self.assertNotIn(f'"{value}"', output)
+
+    def test_transient_runtime_state_is_reused(self):
+        source = "\n".join(
+            (ROOT / "src" / name).read_text() for name in RUNTIME_FILES
+        )
+        for removed in ("radio_started", "last_ping", "last_revision",
+                        "declined_until", "leave_until"):
+            self.assertNotIn(f"S.{removed}", source)
+        self.assertIn("S.models=S.models or {}", source)
 
     def test_lazy_modules_reject_mixed_generated_versions(self):
         for name in set(RUNTIME_FILES) - {"main.lua", "app.lua"}:
@@ -128,7 +139,7 @@ class MemoryArchitectureTests(unittest.TestCase):
             path.stat().st_size for path in (ROOT / "dist" / "app").iterdir()
             if path.is_file()
         )
-        self.assertLessEqual(runtime_bytes, 28 * 1024)
+        self.assertLessEqual(runtime_bytes, 25 * 1024)
 
 if __name__ == "__main__":
     unittest.main()

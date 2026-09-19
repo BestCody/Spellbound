@@ -3,7 +3,7 @@ local S=SPELLBOUND_STATE
 local min,max,floor=math.min,math.max,math.floor
 local function clamp(v,a,b) return min(b,max(a,v)) end
 local function new_match(now)
-  return {0,100,100,75,75,0,0,0,0,0,0,0,0,0,0,0,0,now}
+  return {0,100,100,75,75,0,0,0,0,0,0,0,0,0,0,0,0}
 end
 local function advance(g,now)
   if g[1]~=0 then return end
@@ -56,7 +56,7 @@ local function unpack_state(s,now,g)
   g[6],g[7]=now+sh1*20,now+sh2*20
   g[8],g[9]=at1>0 and now+at1*20 or 0,at2>0 and now+at2*20 or 0
   for i=10,15 do g[i]=0 end
-  g[16],g[17],g[18]=seq,result,now
+  g[16],g[17]=seq,result
   return g
 end
 S.new_match,S.apply,S.advance,S.pack_state,S.unpack_state=
@@ -64,18 +64,18 @@ S.new_match,S.apply,S.advance,S.pack_state,S.unpack_state=
 function S.leds(now)
   local g=S.role=="host" and S.match or S.view
   local own=S.role=="host" and 1 or 2
-  local mode=now<S.effect_until and S.effect or ""
-  if S.phase=="result" and g and g[1]==own then mode="W"
+  local mode=now<S.effect_until and S.effect or 0
+  if S.phase=="result" and g and g[1]==own then mode=7
   elseif S.phase=="duel" and g then
     local si=own==1 and 6 or 7;local ii=own==1 and 8 or 9
-    if g[ii]>now then mode=g[si]>=g[ii] and "S" or "I"
-    elseif g[si]>now and mode=="" then mode="S" end
+    if g[ii]>now then mode=g[si]>=g[ii] and 2 or 8
+    elseif g[si]>now and mode==0 then mode=2 end
   end
   badge.led.clear();local step=floor(now/150)%6+1
-  if mode=="F" or mode=="I" then for n=1,6 do if n==step then badge.led.set(n,160,50,0) end end
-  elseif mode=="S" or mode=="B" then badge.led.set_all(0,70,160)
-  elseif mode=="R" then badge.led.set_all(0,160,100)
-  elseif mode=="D" then badge.led.set_all(160,0,0)
-  elseif mode=="W" then for n=1,6 do if n==step then badge.led.set(n,160,120,20) end end end
+  if mode==1 or mode==8 then for n=1,6 do if n==step then badge.led.set(n,160,50,0) end end
+  elseif mode==2 or mode==6 then badge.led.set_all(0,70,160)
+  elseif mode==3 then badge.led.set_all(0,160,100)
+  elseif mode==5 then badge.led.set_all(160,0,0)
+  elseif mode==7 then for n=1,6 do if n==step then badge.led.set(n,160,120,20) end end end
   badge.led.show()
 end

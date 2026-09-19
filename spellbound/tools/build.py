@@ -13,7 +13,7 @@ RUNTIME_FILES = (
     "network.lua", "net_rx.lua", "net_tick.lua", "engine.lua",
 )
 LAZY_FILES = set(RUNTIME_FILES) - {"main.lua", "app.lua"}
-BUILD_ABI = 3
+BUILD_ABI = 4
 LICENSE_FILE = "license.lua"
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
@@ -25,6 +25,20 @@ def state_field_map() -> dict[str, int]:
     return {field: index for index, field in enumerate(sorted(fields), 1)}
 
 STATE_FIELDS = state_field_map()
+RUNTIME_ENUMS = {
+    "home": 0,
+    "train_select": 1,
+    "teach": 2,
+    "lobby": 3,
+    "offer": 4,
+    "waiting": 5,
+    "starting": 6,
+    "joining": 7,
+    "duel": 8,
+    "result": 9,
+    "host": 1,
+    "guest": 2,
+}
 
 def optimize_lua(text: str) -> str:
     text = re.sub(
@@ -32,11 +46,14 @@ def optimize_lua(text: str) -> str:
         lambda match: f"S[{STATE_FIELDS[match.group(1)]}]=function(",
         text,
     )
-    return re.sub(
+    text = re.sub(
         r"\bS\.([A-Za-z_][A-Za-z0-9_]*)",
         lambda match: f"S[{STATE_FIELDS[match.group(1)]}]",
         text,
     )
+    for value, encoded in RUNTIME_ENUMS.items():
+        text = text.replace(f'"{value}"', str(encoded))
+    return text
 
 def validate_manifest(text: str) -> None:
     fields: dict[str, str] = {}
@@ -113,8 +130,8 @@ def build(check: bool = False) -> None:
     ).encode()
 
     runtime_total = sum(len(v) for p, v in output.items() if p.parent.name == "app")
-    if runtime_total > 28 * 1024:
-        raise ValueError("Modular app exceeds the 28 KiB low-memory code budget")
+    if runtime_total > 25 * 1024:
+        raise ValueError("Modular app exceeds the 25 KiB low-memory code budget")
     if runtime_total >= 48 * 1024:
         raise ValueError("Modular app exceeds documented 48 KiB Share bundle limit")
     if len(expected := (set(RUNTIME_FILES) | {"manifest.cfg", LICENSE_FILE})) > 16:

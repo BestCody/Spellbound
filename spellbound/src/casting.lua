@@ -16,18 +16,18 @@ local function sample(now)
 end
 function S.capture_start(now)
   local x,y,z=read_accel()
-  if not x then S.message("Motion sensor unavailable / invalid","X");return end
-  S.capture={now,now,raw_sample(0,x,y,z),false};S.effect=""
+  if not x then S.message("Motion sensor unavailable / invalid",4);return end
+  S.capture={now,now,raw_sample(0,x,y,z),false};S.effect=0
 end
 function S.capture_finish(now,too_long)
   local c=S.capture;if not c then return end
   sample(now);c=S.capture
   local raw,bad=c[3],c[4];S.capture=nil
   if bad or too_long then
-    S.message(too_long and "A hold too long - try again" or "Sensor sample invalid","X");return
+    S.message(too_long and "A hold too long - try again" or "Sensor sample invalid",4);return
   end
   local sig,err=signature(raw);raw=nil
-  if not sig then S.message(err or "No clear movement","X");return end
+  if not sig then S.message(err or "No clear movement",4);return end
   S.handle_signature(sig)
 end
 function S.capture_tick(now)

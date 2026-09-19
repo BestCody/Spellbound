@@ -1,90 +1,90 @@
-if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
+if SPELLBOUND_STATE[4]~=4 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
-S[51]=S[51] or {}
-S[55]=S[55] or false
-S[19]=function(reason)
-S[31]=true
-if S[33] then S[33][1]=4 end
-if S[76] then S[76][1]=4 end
-S[53],S[52],S[5]="result",nil,nil
-S[17],S[18]="",0
-S[35](reason,nil,60000)
+S[47]=S[47] or {}
+S[18]=function(reason)
+S[27]=true
+if S[29] then S[29][1]=4 end
+if S[71] then S[71][1]=4 end
+S[49],S[48],S[5]=9,nil,nil
+S[16],S[17]=0,0
+S[31](reason,nil,60000)
 end
-S[74]=function(kind,data)
-if not S[54] or not S[66] then return false end
-local p="SB1|"..kind.."|"..S[66]..(data and ("|"..data) or "")
+S[69]=function(kind,data)
+if not S[50] or not S[61] then return false end
+local p="SB1|"..kind.."|"..S[61]..(data and ("|"..data) or "")
 if #p>44 then return false end
 return badge.radio.send(p)
 end
-S[69]=function(p)
+S[64]=function(p)
 if type(p)~="string" or #p>44 then return nil end
 local k,s,d=p:match("^SB1|([IJSKCTPQ])|([0-9A-F]+)|?(.*)$")
 if not k or #s~=8 then return nil end
 if p~="SB1|"..k.."|"..s..(d~="" and ("|"..d) or "") then return nil end
 return k,s,d
 end
-S[64]=function(now)
-if not S[33] then return end
-S[61]=(S[61] or 0)+1
-if S[61]>65535 then S[33][1]=4;S[61]=65535 end
-S[74]("T",string.format("%04X|",S[61])..S[49](S[33],now))
-S[28]=now
+S[59]=function(now)
+if not S[29] then return end
+S[56]=(S[56] or 0)+1
+if S[56]>65535 then S[29][1]=4;S[56]=65535 end
+S[69]("T",string.format("%04X|",S[56])..S[45](S[29],now))
+S[25]=now
 end
-S[21]=function(code,spell)
+S[20]=function(code,spell)
 if code==0 then
-S[35](spell==4 and "You surrendered" or (S[68][spell].." cast"),spell==4 and nil or S[10][spell])
+S[31](spell==4 and "You surrendered" or (S[63][spell].." cast"),spell==4 and nil or spell)
 else
 local m=code==1 and "Not enough mana" or
 (code==2 and "Spell cooling down" or
 (code==3 and "Attack already in flight" or
 (code==4 and "Match finished" or "Out-of-order action")))
-S[35](m,"X")
+S[31](m,4)
 end
 end
-S[70]=function(spell)
-if S[53]~="duel" then return end
+S[65]=function(spell)
+if S[49]~=8 then return end
 local now=S[9]()
-if S[62]=="host" then
-S[21](S[3](S[33],1,spell,0,now),spell);S[64](now)
-elseif S[76] then
-if S[52] then S[35]("Waiting for cast acknowledgement");return end
-if S[65]>=65534 then S[35]("Match limit - start a new duel");return end
-S[65]=S[65]+1;S[52]={S[65],spell,now,now}
+if S[57]==1 then
+S[20](S[3](S[29],1,spell,0,now),spell);S[59](now)
+elseif S[71] then
+if S[48] then S[31]("Waiting for cast acknowledgement");return end
+if S[60]>=65534 then S[31]("Match limit - start a new duel");return end
+S[60]=S[60]+1;S[48]={S[60],spell,now,now}
 end
 end
-S[39]=function(button,kind,now)
+S[35]=function(button,kind,now)
 local B,K=badge.input.BUTTON,badge.input.KIND
 if kind~=K.PRESSED then return end
+local phase=S[49]
 if button==B.B then
 S[5]=nil
-if S[53]=="duel" then
-if now<(S[29] or 0) then S[70](4);S[29]=0
-else S[29]=now+1800;S[35]("Press B again to surrender",nil,1800) end
-elseif S[53]=="offer" then
-S[13],S[14]=S[23][1]..S[23][2],now+14000
-badge.radio.send("SB1|Q|"..S[23][2]);S[23]=nil;S[53]="lobby"
-elseif S[53]=="result" then S[60]()
+if phase==8 then
+if now<(S[12] or 0) then S[65](4);S[12]=0
+else S[12]=now+1800;S[31]("Press B again to surrender",nil,1800) end
+elseif phase==4 then
+S[13],S[12]=S[22][1]..S[22][2],now+14000
+badge.radio.send("SB1|Q|"..S[22][2]);S[22]=nil;S[49]=3
+elseif phase==9 then S[55]()
 else
-if S[66] and S[53]~="result" then S[74]("Q") end
-S[60]()
+if S[61] and phase~=9 then S[69]("Q") end
+S[55]()
 end
 return
 end
-if S[53]=="lobby" then
-if button==B.UP then S[63]=math.max(1,S[63]-1)
-elseif button==B.DOWN then S[63]=math.min(math.max(1,#S[51]/3),S[63]+1)
-elseif button==B.A and S[51][(S[63]-1)*3+1] then
-if S[20] then S[20]() end
-S[50]=S[51][(S[63]-1)*3+1];S[66]=string.format("%08X",badge.sys.random())
-S[62],S[53],S[12],S[26],S[45]="host","waiting",now+12000,now,0
-S[65],S[61],S[25]=0,0,-1;S[31]=false
+if phase==3 then
+if button==B.UP then S[58]=math.max(1,S[58]-1)
+elseif button==B.DOWN then S[58]=math.min(math.max(1,#S[47]/3),S[58]+1)
+elseif button==B.A and S[47][(S[58]-1)*3+1] then
+if S[19] then S[19]() end
+S[46]=S[47][(S[58]-1)*3+1];S[47]=nil;S[61]=string.format("%08X",badge.sys.random())
+S[57],S[49],S[12],S[23],S[41]=1,5,now+12000,now,0
+S[60],S[56]=0,0;S[27]=false
 end
-elseif S[53]=="offer" and button==B.A then
-if S[20] then S[20]() end
-S[50],S[66]=S[23][1],S[23][2];S[23]=nil
-S[62],S[53],S[12],S[26],S[45]="guest","joining",now+12000,now,0
-S[65],S[61],S[25]=0,0,-1;S[31]=false
-elseif S[53]=="duel" and button==B.A and not S[5] then
-if S[7] then S[7](now) else S[35]("Teach spells before duel","X") end
-elseif S[53]=="result" and button==B.A then S[60]() end
+elseif phase==4 and button==B.A then
+if S[19] then S[19]() end
+S[46],S[61]=S[22][1],S[22][2];S[22],S[47]=nil,nil
+S[57],S[49],S[12],S[23],S[41]=2,7,now+12000,now,0
+S[60],S[56]=0,-1;S[27]=false
+elseif phase==8 and button==B.A and not S[5] then
+if S[7] then S[7](now) else S[31]("Teach spells before duel",4) end
+elseif phase==9 and button==B.A then S[55]() end
 end

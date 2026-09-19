@@ -24,5 +24,9 @@ jobs:
         run: lua5.4 tests/design_pass.lua
       - name: Packaged app smoke test
         run: lua5.4 tests/install_smoke.lua
+      - name: Desktop memory regression budget
+        run: |
+          python3 -m pip install lupa==2.8
+          python3 tools/memory_scenarios.py --max-match-delta 52000
       - name: Standalone checker smoke test
         run: lua5.4 tests/checker_smoke.lua

@@ -72,7 +72,7 @@ Spellbound directory contains exactly the 12 files listed above. IDE Push does
 not remove obsolete remote files. In particular, old `core.lua`, `effects.lua`,
 `gesture.lua`, `net_buttons.lua`, `ui.lua`, an old `LICENSE.txt`, or an unwanted `icon.bin` must not be
 left in the shared directory. Inspect first and remove only those exact obsolete
-Spellbound files. Version 0.4.0 also rejects mixed generated modules with an
+Spellbound files. Version 0.4.1 also rejects mixed generated modules with an
 explicit reinstall error instead of remaining on `Loading...`.
 
 Both badges should run the same current badge firmware before transfer and play.
