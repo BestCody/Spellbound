@@ -8,7 +8,7 @@ S[53],S[63],S[34],S[54]="home",1,"",false
 S[47],S[48],S[17],S[18]="",0,"",0
 S[46],S[44],S[43],S[27]=0,0,0,nil
 SPELLBOUND_STATE=S
-local root,label,radio_tried
+local root,label
 S[9]=function() return badge.sys.ms() end
 S[32]=function(v)
 if type(v)~="string" then return nil end
@@ -95,15 +95,8 @@ S[36],S[37]=S[71],S[72]
 if not label then rebuild() else S[59](S[9]()) end
 end
 local function duel()
-if not S[41] and not radio_tried then drop() end
-if not radio_tried then
-radio_tried=true
-S[55]=badge.radio.enable()==true
-S[34]=S[32](badge.radio.mac()) or S[34]
-S[54]=S[55] and S[34]~="000000000000"
-end
 if S[54] then
-if not S[41] then load_duel();load_duel=nil end
+if not S[41] then drop();load_duel();load_duel=nil end
 badge.radio.on_recv(S[57])
 S[53],S[51],S[63],S[45]="lobby",{},1,0
 S[36],S[37]=S[39],S[40]
@@ -112,9 +105,10 @@ S[53]="home";S[35]("Radio unavailable; HOME then reopen","X")
 end
 if not label then rebuild() else S[59](S[9]()) end
 end
-local function enter(r)
-root=r;radio_tried=false;S[55]=false;S[54]=false;S[11](r)
+local function enter(r,radio_ready)
+root=r;S[55]=radio_ready==true;S[11](r)
 S[34]=S[32](badge.radio.mac()) or "000000000000"
+S[54]=S[55] and S[34]~="000000000000"
 local now=S[9]();S[59](now);badge.led.clear();badge.led.show()
 end
 local function tick()
@@ -140,7 +134,7 @@ end
 local function exit()
 if S[66] and S[74] then S[74]("Q") end
 badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
-S[55],S[54],radio_tried=false,false,false
+S[55],S[54]=false,false
 end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
 return APP

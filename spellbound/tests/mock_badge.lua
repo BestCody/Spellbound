@@ -9,7 +9,7 @@ local allowed_style={bg_color=true,bg_opa=true,color=true,opa=true,radius=true,
 local function integer(n) assert(type(n)=="number" and n==math.floor(n),"coordinate/value must be integer") end
 function M.new(opts)
  opts=opts or {}
- local c={now=0,offset=opts.offset or 0,mac=opts.mac or "AA:00:00:00:00:01",sent={},
+ local c={now=0,offset=opts.offset or 0,mac=opts.mac or "AA:00:00:00:00:01",sent={},loaded_modules=0,
   files=opts.files or {},store=opts.store or {},held={},widgets={},logs={},leds={},
   accel={0,0,1000},radio=opts.radio~=false,drop_count=0,disabled=false,write_fail=false,enables=0,sensor_reads=0,store_writes=0,file_writes=0,ui_writes=0}
  local function widget(kind,parent,w,h)
@@ -45,7 +45,10 @@ function M.new(opts)
    stats=function() return {lua_used=50000,lua_limit=98304,lua_peak=60000,widgets=#c.widgets,free_heap=90000,uptime_ms=c.now} end,
    version=function() return "mock-2026-09-19" end,gc_step=function() collectgarbage("step",1) end},"sys"),
   sensor=strict({accel=function() c.sensor_reads=c.sensor_reads+1;if c.accel then return table.unpack(c.accel) end;return nil,"not available" end},"sensor"),
-  radio=strict({mac=function() return c.mac end,enable=function() c.enables=c.enables+1;return c.radio end,
+  radio=strict({mac=function() return c.mac end,enable=function()
+    c.enables=c.enables+1
+    return c.radio and (not opts.require_radio_first or c.loaded_modules==0)
+   end,
    disable=function() c.disabled=true end,on_recv=function(f) c.receiver=f end,dropped=function() return c.drop_count end,
    send=function(p) assert(#p>=1 and #p<=44,"radio packet exceeds budget");c.sent[#c.sent+1]={payload=p,at=c.now};return true end},"radio"),
   led=strict({set=function(i,r,g,b) assert(i>=1 and i<=6);integer(r);integer(g);integer(b);assert(math.max(r,g,b)<=255 and math.min(r,g,b)>=0);c.leds[i]={r,g,b} end,
@@ -66,6 +69,7 @@ function M.new(opts)
  c.env.require=function(name)
   assert(name:match("^[A-Za-z0-9_]+$"))
   if not cache[name] then
+  c.loaded_modules=c.loaded_modules+1
   local v=assert(loadfile(base.."/"..name..".lua","t",c.env))()
   cache[name]=v==nil and true or v
  end

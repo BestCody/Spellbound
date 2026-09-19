@@ -22,13 +22,14 @@ local function pair()
  return a,b,step
 end
 
-test("home and Teach leave Bluetooth off",function()
- local b=Mock.new();assert(b.enables==0);b:tick(100)
+test("Bluetooth is reserved once before Home and Teach",function()
+ local b=Mock.new();assert(b.enables==1);b:tick(100)
  b:tap("DOWN");b:tap("A");b:tap("A");b:tick(100)
- assert(b:state().phase=="teach" and b.enables==0)
+ assert(b:state().phase=="teach" and b.enables==1)
 end)
 test("Find a duel enables radio once per foreground session",function()
- local b=Mock.new();b:tap("A");assert(b.enables==1 and b.receiver)
+ local b=Mock.new({production=true,require_radio_first=true});assert(b.enables==1)
+ b:tap("A");assert(b.enables==1 and b.receiver)
  b:tap("B");b:tap("A");assert(b.enables==1)
 end)
 test("Teach preloading deletes and rebuilds the UI",function()

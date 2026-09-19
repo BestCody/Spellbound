@@ -42,8 +42,10 @@ the gesture recognizer and duel engine as separate modules.
 8. Do **not** use **Import app** for support modules. Import app replaces the
    editor workspace; the **+** button adds a module to the current app.
 
-The production `main.lua` is intentionally under 1 KiB and loads only
-`app.lua`; `app.lua` itself requires no startup support module. Every lazy-loaded
+The production `main.lua` is intentionally under 1 KiB. It initializes Bluetooth
+before loading `app.lua`, so the native HCI buffers are reserved before the Lua
+application can fragment the remaining heap. `app.lua` itself requires no startup
+support module. Every lazy-loaded
 feature chunk stays at or below 4 KiB after conservative production compaction.
 On first Teach/Find-a-duel entry, the one-label UI is deleted before compilation.
 Teach adds exactly `gesture_dtw.lua`, `gesture_sig.lua`, `casting.lua`, and
@@ -70,7 +72,7 @@ Spellbound directory contains exactly the 12 files listed above. IDE Push does
 not remove obsolete remote files. In particular, old `core.lua`, `effects.lua`,
 `gesture.lua`, `net_buttons.lua`, `ui.lua`, an old `LICENSE.txt`, or an unwanted `icon.bin` must not be
 left in the shared directory. Inspect first and remove only those exact obsolete
-Spellbound files. Version 0.3.1 also rejects mixed generated modules with an
+Spellbound files. Version 0.4.0 also rejects mixed generated modules with an
 explicit reinstall error instead of remaining on `Loading...`.
 
 Both badges should run the same current badge firmware before transfer and play.
@@ -85,7 +87,9 @@ the complete 12-file app directory before diagnosing Spellbound itself.
 4. Click **Connect** and choose **USB JTAG/serial debug unit** / Espressif.
 5. Click **Push** and leave the cable connected until it finishes.
 6. Reboot once after replacing an older Spellbound install.
-7. Open **Spellbound** from the badge launcher with A.
+7. Open **Spellbound** from the badge launcher with A. Bluetooth initialization
+   now occurs before the Home screen; no `hci inits failed` or `nimble host init
+   failed` line should appear.
 8. Capture the first startup log and any `script_app` error.
 
 Repeat the same editor setup/push process for the second badge.

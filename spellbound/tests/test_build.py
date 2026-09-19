@@ -66,11 +66,11 @@ class MemoryArchitectureTests(unittest.TestCase):
         self.assertLess(app.index('require("gesture_dtw")'), app.index('require("gesture_sig")'))
         self.assertLess(app.index('require("network")'), app.index('require("engine")'))
 
-    def test_bluetooth_is_reserved_before_duel_module_compilation(self):
+    def test_bluetooth_is_reserved_before_app_compilation(self):
+        main = (ROOT / "src" / "main.lua").read_text()
         app = (ROOT / "src" / "app.lua").read_text()
-        duel = app[app.index("local function duel()"):app.index("local function enter(")]
-        self.assertLess(duel.index("badge.radio.enable()"), duel.index("load_duel()"))
-        self.assertIn("if not radio_tried then", duel)
+        self.assertLess(main.index("badge.radio.enable()"), main.index('require("app")'))
+        self.assertNotIn("badge.radio.enable()", app)
 
     def test_lazy_modules_are_compact_side_effect_installers(self):
         lazy = set(RUNTIME_FILES) - {"main.lua", "app.lua"}

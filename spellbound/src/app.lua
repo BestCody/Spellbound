@@ -9,7 +9,7 @@ S.phase,S.selected,S.me,S.radio_ok="home",1,"",false
 S.note,S.note_until,S.effect,S.effect_until="",0,"",0
 S.next_ui,S.next_led,S.next_gc,S.last_screen=0,0,0,nil
 SPELLBOUND_STATE=S
-local root,label,radio_tried
+local root,label
 
 function S.clock() return badge.sys.ms() end
 function S.mac_key(v)
@@ -98,18 +98,8 @@ local function teach()
   if not label then rebuild() else S.render(S.clock()) end
 end
 local function duel()
-  -- Reserve the native Bluetooth heap before compiling any Duel modules. On
-  -- hardware those modules fragmented the last large block and made NimBLE's
-  -- controller allocation fail even though total free heap still looked ample.
-  if not S.network_tick and not radio_tried then drop() end
-  if not radio_tried then
-    radio_tried=true
-    S.radio_started=badge.radio.enable()==true
-    S.me=S.mac_key(badge.radio.mac()) or S.me
-    S.radio_ok=S.radio_started and S.me~="000000000000"
-  end
   if S.radio_ok then
-    if not S.network_tick then load_duel();load_duel=nil end
+    if not S.network_tick then drop();load_duel();load_duel=nil end
     badge.radio.on_recv(S.receive)
     S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
     S.mode_button,S.mode_render=S.net_button,S.net_render
@@ -118,9 +108,10 @@ local function duel()
   end
   if not label then rebuild() else S.render(S.clock()) end
 end
-local function enter(r)
-  root=r;radio_tried=false;S.radio_started=false;S.radio_ok=false;S.create_ui(r)
+local function enter(r,radio_ready)
+  root=r;S.radio_started=radio_ready==true;S.create_ui(r)
   S.me=S.mac_key(badge.radio.mac()) or "000000000000"
+  S.radio_ok=S.radio_started and S.me~="000000000000"
   local now=S.clock();S.render(now);badge.led.clear();badge.led.show()
 end
 local function tick()
@@ -146,7 +137,7 @@ end
 local function exit()
   if S.sid and S.transmit then S.transmit("Q") end
   badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
-  S.radio_started,S.radio_ok,radio_tried=false,false,false
+  S.radio_started,S.radio_ok=false,false
 end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
 -- TEST_ONLY_BEGIN

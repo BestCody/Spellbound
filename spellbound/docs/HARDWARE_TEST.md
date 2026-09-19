@@ -1,4 +1,4 @@
-# Physical validation checklist — not yet performed
+# Physical validation checklist — partial startup logs captured
 
 Record both badges' firmware versions, the time of the check, and the observed result. These are manual acceptance checks, not claims of completed hardware tests.
 
@@ -33,9 +33,9 @@ Start with a successful motion-controlled duel and demonstrate a newly taught ge
 
 Keep a copy of the prebuilt modular app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
 
-## Design pass 0.3.1 acceptance
+## Design pass 0.4.0 acceptance
 
-- On a fresh app launch, check Home/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify Bluetooth initializes once, before the Duel modules compile, followed by discovery/acceptance. There must be no `BLE_INIT: Malloc failed` or `ESP_ERR_NO_MEM` line.
+- On a fresh app launch, verify Bluetooth initializes once before the Home screen and before `app.lua` is compiled. Then check Home/Teach and open Find a duel for discovery/acceptance. There must be no `BLE_INIT: Malloc failed`, `hci inits failed`, `nimble host init failed`, or `ESP_ERR_NO_MEM` line.
 - Check OFF/64/160/255 LED effects use a fixed competition brightness.
 - Confirm notifications do not hide the bottom controls, incoming warnings remain visible during capture, and a protected attack shows the shield-ready state.
 - Check long messages for native-font wrapping/clipping. The desktop preview is not LVGL.

@@ -1,7 +1,7 @@
 {
-  "version": "0.3.1",
+  "version": "0.4.0",
   "package_mode": "deep-memory-side-effect",
   "runtime_files": 12,
-  "runtime_bytes": 25779,
+  "runtime_bytes": 25698,
   "standalone_import": false
 }
