@@ -12,7 +12,7 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The UI uses only nine native widgets, and heavy features are split into sub-4 KiB lazy Lua chunks with garbage-collection steps between loads.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The UI uses only nine native widgets. On the first entry to **Teach** or **Find a duel**, Spellbound temporarily deletes its UI tree, preloads the complete feature stack with GC between micro-modules, then rebuilds the nine-widget UI.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
