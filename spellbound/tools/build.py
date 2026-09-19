@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Build Spellbound's modular runtime and one-file Hacker Badge importer."""
+"""Build Spellbound's modular Hacker Badge runtime."""
 from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_FILES = ("main.lua", "gesture.lua", "engine.lua")
-MODULES = (("gesture", "gesture.lua", ("raw_sample", "signature", "distance", "recognize")),
-           ("engine", "engine.lua", ("new_match", "apply", "advance", "pack_state", "unpack_state")))
+LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
 
 def validate_manifest(text: str) -> None:
@@ -44,50 +42,6 @@ def production_main(text: str) -> str:
     return text.split("-- TEST_EXPORTS_BEGIN", 1)[0].rstrip() + "\n"
 
 
-def loader(name: str, code: str, exports: tuple[str, ...]) -> str:
-    """Wrap a module without allocating its temporary export table at runtime."""
-    code = re.sub(r"\nreturn \{[^\n]+\}\s*$", "", code.rstrip())
-    return (
-        f"local function __load_{name}()\n{code}\n"
-        f"return {','.join(exports)}\nend\n"
-    )
-
-
-def make_standalone(manifest: str, sources: dict[str, str]) -> str:
-    main = production_main(sources["main.lua"])
-    replacement = """local function load_components()
-  ui_create,label=nil,nil
-  badge.sys.gc_step()
-  raw_sample,signature,distance,recognize=__load_gesture();__load_gesture=nil
-  badge.sys.gc_step()
-  new_match,apply,advance,pack_state,unpack_state=__load_engine();__load_engine=nil
-  badge.sys.gc_step()
-end
-local function send_state"""
-    pattern = re.compile(r"local function load_components\(\).*?\nend\nlocal function send_state", re.S)
-    main, count = pattern.subn(replacement, main, count=1)
-    if count != 1:
-        raise ValueError("Could not replace modular load_components()")
-
-    embedded = "".join(loader(name, sources[file], exports)
-                       for name, file, exports in MODULES)
-    body = embedded + "\n" + main
-
-    # Generated-only cleanup lowers parser/compile pressure while readable src/ stays intact.
-    body = re.sub(r"--\[\[.*?\]\]\s*", "", body, flags=re.S)
-    body = "\n".join(line for line in body.splitlines()
-                     if not line.lstrip().startswith("--"))
-    body = re.sub(r"\n{3,}", "\n\n", body).strip() + "\n"
-
-    if re.search(r'\brequire\s*\(', body):
-        raise ValueError("Standalone build still contains require()")
-    standalone = "--[==[badge-app\n" + manifest + "]==]\n\n" + body
-    standalone.encode("ascii")
-    if len(body.encode()) > 64 * 1024:
-        raise ValueError("Standalone main.lua exceeds 64 KiB")
-    return standalone
-
-
 def build(check: bool = False) -> None:
     manifest = (ROOT / "manifest.cfg").read_text(encoding="utf-8")
     validate_manifest(manifest)
@@ -108,22 +62,27 @@ def build(check: bool = False) -> None:
     if runtime_total >= 48 * 1024:
         raise ValueError("Modular app exceeds documented Share bundle limit")
 
-    standalone = make_standalone(manifest, sources)
-    output[ROOT / "dist" / "Spellbound-install.lua"] = standalone.encode()
-
     report = {
         "version": next((line.split("=", 1)[1] for line in manifest.splitlines()
                          if line.startswith("version=")), "unknown"),
+        "package_mode": "modular",
         "runtime_files": 4,
         "runtime_bytes": runtime_total,
-        "standalone_import": True,
-        "standalone_bytes": len(standalone.encode()),
+        "standalone_import": False,
         "sha256": {
             str(path.relative_to(ROOT / "dist")): hashlib.sha256(data).hexdigest()
             for path, data in output.items()
         },
     }
     output[ROOT / "dist" / "build-info.json"] = (json.dumps(report, indent=2) + "\n").encode()
+
+    if check:
+        if LEGACY_STANDALONE.exists():
+            raise SystemExit(
+                "Legacy dist/Spellbound-install.lua exists; remove it before using the modular build"
+            )
+    elif LEGACY_STANDALONE.exists():
+        LEGACY_STANDALONE.unlink()
 
     for path, content in output.items():
         if check:
@@ -136,8 +95,8 @@ def build(check: bool = False) -> None:
             path.write_bytes(content)
 
     print(
-        f"{'Verified' if check else 'Built'} modular app {runtime_total:,} bytes; "
-        f"standalone importer {len(standalone.encode()):,} bytes."
+        f"{'Verified' if check else 'Built'} modular app "
+        f"{runtime_total:,} bytes across 4 files."
     )
 
 
