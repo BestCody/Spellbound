@@ -5,7 +5,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 ## Boot and APIs
 
 - Launch the optional Badge Check app. Confirm x/y/z change as the badge is moved and that the other badge receives an A-triggered ping.
-- Install all five Spellbound files. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
+- Install the four modular Spellbound files from `dist/app/` (`manifest.cfg`, `main.lua`, `gesture.lua`, and `engine.lua`). Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
 - Capture `heap` before launch and the first error if compilation/startup fails. Record in-app diagnostic heap values after launch and after training. Leave headroom; do not equate the 96 KiB limit to available RAM.
 - Confirm no startup/tick/button deadline failures. The implementation targets the documented API 2 guide and newer callback allowances, not a guessed chip firmware.
 
@@ -30,7 +30,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 Start with a successful button-mode duel, switch to motion, then demonstrate a newly taught gesture. Do not present synthetic fixture pass rates as recognition accuracy. Explain that countdown visuals are approximate and host-authoritative, not perfectly synchronized.
 
-Keep a copy of the prebuilt app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
+Keep a copy of the prebuilt modular app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
 
 ## Design pass 0.2.0 acceptance
 
