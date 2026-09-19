@@ -1,62 +1,93 @@
-# Install on two HTN 2026 badges
+# Install Spellbound on two HTN 2026 badges
 
-## Files you need
+## Recommended: one-file import
 
-`dist/app/` contains exactly these five runtime files:
+Spellbound now ships as a **true single-file Hacker Badge app**:
 
 ```text
-manifest.cfg
-main.lua
-gesture.lua
-engine.lua
-model_codec.lua
+dist/Spellbound-install.lua
 ```
 
-**All five are required.** `dist/Spellbound-install.lua` combines only the manifest and main file for the IDE's Import app button. It does not embed the modules. Do not upload the repository, tests, publishing scripts, or documentation to the badge.
+That file contains the manifest, main game, gesture recognizer, duel engine, and
+model codec. You do **not** need to add `gesture.lua`, `engine.lua`, or
+`model_codec.lua` manually in the Badge IDE.
 
-## Updating to design pass 0.2.0
+## Upload to the first badge
 
-Use the same five files and slug. Replace `main.lua`, all three modules, and the manifest with the current `dist/app` versions (or import the starter and add the modules again). Save editor work first. Personal gesture files under `appdata/` are not part of this upload; do not delete them.
+1. Open https://badge.hackthenorth.com/ide/ in desktop Chrome or Edge.
+2. Save any current editor work you want to keep.
+3. Click **Import app**.
+4. Choose `spellbound/dist/Spellbound-install.lua` from your repository checkout.
+5. Confirm the preview shows slug `spellbound`.
+6. Click **Replace editor files**.
+7. Turn the badge off.
+8. Connect it using a USB **data** cable.
+9. Turn the badge on normally. **Do not hold START.**
+10. Click **Connect** and choose **USB JTAG/serial debug unit** / Espressif.
+11. Click **Push** and leave the cable connected until it finishes.
+12. If an older Spellbound install used different manifest runtime options,
+    click **Reboot** once after pushing.
+13. Open **Spellbound** from the badge launcher with A.
 
-A fresh launch keeps Bluetooth off until **Find a duel**. AUX1 on the home menu now cycles OFF/64/160/255. The control mode is in the header; notifications do not replace the bottom casting instructions. In Diagnostics, A logs memory/firmware information. See `docs/DESIGN_PASS.md` before relying on the desktop memory probe.
+Repeat the same import/push process for the second badge.
 
-## Current badge IDE
+**Import** changes the browser workspace. **Push** is what writes the app to the
+badge.
 
-1. Open https://badge.hackthenorth.com/ide/ in desktop Chrome or Edge. Save existing editor work before replacing it.
-2. Choose **Import app** and select `dist/Spellbound-install.lua`. Confirm slug `spellbound` and **Replace editor files**.
-3. Use **+** in the files panel to add `gesture.lua`. Paste the complete contents of `dist/app/gesture.lua`. Repeat for `engine.lua` and `model_codec.lua`, using those exact names. These are ordinary Lua files, not manifest-wrapped imports. Do not click Import app separately for each module, because that replaces the workspace.
-4. Confirm the editor contains `manifest.cfg`, `main.lua`, and the three modules. `README.md` may also be present in the IDE and is not uploaded.
-5. Turn the badge off, connect a USB **data** cable, then turn it on normally. **Do not hold START while connecting.** Close other applications/tabs using the same serial port.
-6. Choose **Connect**, then **USB JTAG/serial debug unit** (possibly labelled Espressif). Choose **Push** and keep the cable connected until the upload finishes.
-7. The manifest requests `api=2`, `heap_kb=96`, and `wake_lock=1`. If replacing an existing `spellbound` install with different runtime manifest options, **Reboot** after uploading; reopening alone does not refresh all runtime settings.
-8. Open Spellbound from the badge launcher with A. Repeat on the other badge.
+## First hardware test
 
-The IDE is an uploader/editor, not a badge simulator. Import changes its workspace; Push changes files on the badge. The app must remain open on both badges during play.
+Prove the duel before debugging motion recognition:
 
-## Older IDE without Import app
+1. Open Spellbound on both badges.
+2. Press START to enter button mode.
+3. Open **Find a duel** on both.
+4. One player sends an invitation; the other accepts.
+5. LEFT casts Fireball. Verify exactly one 25-HP hit after the warning.
+6. UP casts Shield. Verify it blocks an incoming Fireball.
+7. RIGHT casts Recharge. Verify mana increases.
 
-Set the existing `manifest.cfg` editor to the contents of the repository's `manifest.cfg`. Set `main.lua` to `dist/app/main.lua`. Add the three support modules with **+**, as above. Then Connect and Push. Do not paste the combined import file into only `main.lua`, since that does not update the manifest.
+Then press START to return to motion mode and use Practice / Teach.
 
-## Verify before using motion controls
+## Development layout
 
-Open Find a duel on both badges, invite from only one, and accept on the other. Press START to enter button mode. LEFT casts Fireball, UP casts Shield, and RIGHT restores mana. Establish working radio/game rules before debugging recognition.
+Readable source remains modular:
 
-Switch back with START. Use Practice to test motions and Teach to record personal templates. Begin with deliberate, distinct gestures, keep the same starting pose, and pause briefly at the start of the A hold. The preset rules were evaluated only on synthetic motion fixtures, not recorded participants.
+```text
+src/main.lua
+src/gesture.lua
+src/engine.lua
+src/model_codec.lua
+```
 
-## Optional small hardware checker
+`tools/build.py` generates both:
 
-`dist/Badge-check.lua` is a separate, standalone single-file app with slug `spellbound_check`. Import and Push it on each badge to inspect sensor values and send a small radio ping with A. A successful transmit means queued; the **other badge's RX display** is the delivery check. Exit and restore the Spellbound workspace afterward. This checker is independent of the five-file game.
+- `dist/app/` — modular development/runtime copies.
+- `dist/Spellbound-install.lua` — the complete one-file Badge IDE import.
 
-## Problems
+Edit `src/`, not generated `dist/` files, then rebuild with:
 
-**Module not found:** verify the exact three filenames in the IDE before Push. Reimporting a module as an app replaces the workspace; use + instead.
+```sh
+python tools/build.py
+```
 
-**Radio unavailable:** HOME, allow the badge to return/reboot, and reopen. Record the firmware version and the first console error. USB upload success is not evidence of functioning radio.
+## Troubleshooting
 
-**Lua memory/startup error:** collect `heap` in the IDE console before launching and copy the first error. The 96 KiB manifest value is a quota, not reserved system memory. A reboot may reduce fragmentation, but does not prove the app fits. Installed files occupy flash; deleting unrelated inactive apps is not a general RAM fix.
+**Import error:** make sure you selected `dist/Spellbound-install.lua`, not a
+source module.
 
-**Gesture fizzles:** use a slower/clearer movement within 0.3–2.4 seconds, maintain the starting pose, or train the spell. Use button mode to separate radio problems from recognition problems.
+**No device in Connect:** use Chrome/Edge, a USB data cable, and close other
+serial tools or IDE tabs.
 
-**Changes/s looks low:** it counts changes in the cached accelerometer values observed by the app, not confirmed fresh sensor samples. Stationary readings can repeat.
+**Push succeeds but Spellbound does not open:** copy the first console error.
+Useful read-only console commands are `apps`, `heap`, and `uitree`.
 
-**Bad display or timeout:** capture firmware version, which screen/action failed, and the first traceback. No physical display/timing validation was possible during generation.
+**Lua memory limit exceeded:** capture the first error and the pre-launch
+`heap` output. The 96 KiB Lua setting is a quota ceiling, not guaranteed free
+physical RAM. A single-file build is easier to install but may have a higher
+compile-time peak because all code is parsed in one chunk.
+
+**Gesture fizzles:** verify the duel in button mode first, then train deliberate
+0.3-2.4 second movements with a consistent starting pose.
+
+Desktop tests cannot prove ESP32 timing, allocator headroom, radio reliability,
+or real gesture accuracy. Those still require testing on the actual badges.
