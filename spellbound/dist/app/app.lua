@@ -143,15 +143,6 @@ local function exit()
   if S.sid and S.transmit then S.transmit("Q") end
   badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
 end
-local function test_api()
-  load_gesture_stack("test");ensure_network();S.ensure_engine()
-  return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
-    calibrate=S.calibrate,class_score=S.class_score,
-    new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
-    split_packet=S.split_packet,receive=S.receive,submit=S.submit,
-    state=function() return {phase=S.phase,role=S.role,match=S.match,view=S.view,pending=S.pending,
-      models=S.models,thresholds=S.thresholds,training=S.training,capture=S.capture,
-      peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}
-end
-APP.enter,APP.tick,APP.button,APP.exit,APP.test_api=enter,tick,button,exit,test_api
+APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
+
 return APP
