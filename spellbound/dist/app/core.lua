@@ -1,14 +1,14 @@
 -- Shared Spellbound state and low-cost helpers.
 local min,max,floor=math.min,math.max,math.floor
 local S={
-  MAX_CAPTURE=3000, LED=160,
+  MAX_CAPTURE=4500, LED=160,
   spells={"Fireball","Shield","Recharge"}, codes={"F","S","R"},
   reject_messages={"Not enough mana","Spell cooling down","Attack already in flight","Match finished","Out-of-order action"},
   phase="home", selected=1, role=nil, me="", peer=nil, sid=nil, radio_ok=false,
   peers={}, invite=nil, match=nil, pending=nil, view=nil,
   declined=nil, declined_until=0, seq=0, revision=0, last_revision=-1,
   last_rx=0, next_tx=0, next_ui=0, next_led=0, last_state_tx=0, last_ping=0, deadline=0,
-  capture=nil, training=nil, models={{},{},{}}, note="", note_until=0, effect="", effect_until=0,
+  capture=nil, training=nil, models={{},{},{}}, thresholds={nil,nil,nil}, note="", note_until=0, effect="", effect_until=0,
   leave_until=0, radio_started=false, widgets={}, text_cache={}, visible_phase=nil,
   next_gc=0, locally_ended=false,
 }
