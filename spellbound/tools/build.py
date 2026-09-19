@@ -14,7 +14,7 @@ RUNTIME_FILES = (
 )
 LAZY_FILES = set(RUNTIME_FILES) - {"main.lua", "app.lua"}
 BUILD_ABI = 3
-LICENSE_FILE = "LICENSE.txt"
+LICENSE_FILE = "license.lua"
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
 def state_field_map() -> dict[str, int]:
@@ -107,7 +107,10 @@ def build(check: bool = False) -> None:
             raise ValueError(f"{name} exceeds 4 KiB lazy-module compile budget")
         output[ROOT / "dist" / "app" / name] = code.encode()
     output[ROOT / "dist" / "app" / "manifest.cfg"] = manifest.encode()
-    output[ROOT / "dist" / "app" / LICENSE_FILE] = (ROOT / "LICENSE").read_bytes().replace(b"\r\n", b"\n")
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8").splitlines()
+    output[ROOT / "dist" / "app" / LICENSE_FILE] = (
+        "\n".join("-- " + line if line else "--" for line in license_text) + "\n"
+    ).encode()
 
     runtime_total = sum(len(v) for p, v in output.items() if p.parent.name == "app")
     if runtime_total > 28 * 1024:

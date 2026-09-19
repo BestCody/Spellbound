@@ -1,4 +1,4 @@
-# Badge-native design pass — 0.3.0
+# Badge-native design pass — 0.3.1
 
 This pass applies the supplied **Agent instructions: create a Hacker Badge app in the IDE** to the existing Spellbound game. The guide is the basis for hardware/API constraints; the palette, layout, light patterns, and copy are Spellbound design choices, not requirements quoted from the guide.
 
@@ -34,7 +34,7 @@ Frames are timestamp-driven, scheduled no faster than every 50 ms, overwrite all
 
 ## Runtime and memory
 
-Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use Teach without starting Bluetooth. Once enabled, it stays enabled for that foreground session; returning to the in-app home menu is not the same as exiting via HOME. Startup failure leaves non-radio modes available and asks for a normal exit/reopen.
+Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use Teach without starting Bluetooth. The one-widget UI is released and Bluetooth reserves its native heap before any Duel module is compiled; this prevents Lua chunks from fragmenting the controller's last large allocation block. Once enabled, it stays enabled for that foreground session; returning to the in-app home menu is not the same as exiting via HOME. A failed controller initialization is not retried in the same foreground session because firmware failures can further fragment heap; non-radio modes remain available and the app asks for a normal exit/reopen.
 
 The competition build performs no diagnostic logging or diagnostic metadata construction. Firmware, memory, and gesture-score format strings were removed from the runtime; physical memory acceptance uses the firmware's external console statistics.
 
@@ -48,7 +48,7 @@ Do not demonstrate on the strength of the desktop memory number alone. Upload th
 
 ## Packaging and validation
 
-The slug remains `spellbound`. The physical package contains 12 files in `dist/app/`: `manifest.cfg`, 10 Lua modules, and `LICENSE.txt`. The build enforces a sub-2 KiB production `main.lua`, a sub-6 KiB resident `app.lua`, a 4 KiB ceiling for each lazy production chunk, a 28 KiB low-memory package budget, exact membership, the documented 16-file Share cap, and the 48 KiB total Share cap. Production Lua removes blank lines, full-line comments, and indentation, and maps private shared-state fields to stable numeric slots. Version 0.3.0 adds a production ABI marker so partial old/new module sets fail with an explicit reinstall message.
+The slug remains `spellbound`. The physical package contains 12 files in `dist/app/`: `manifest.cfg`, 10 runtime Lua modules, and comment-only `license.lua`. Using a `.lua` notice is deliberate: the Badge IDE pushes support modules but omitted the earlier text notice from an observed transfer. The build enforces a sub-2 KiB production `main.lua`, a sub-6 KiB resident `app.lua`, a 4 KiB ceiling for each lazy production chunk, a 28 KiB low-memory package budget, exact membership, the documented 16-file Share cap, and the 48 KiB total Share cap. Production Lua removes blank lines, full-line comments, and indentation, and maps private shared-state fields to stable numeric slots. Version 0.3.x includes a production ABI marker so partial old/new module sets fail with an explicit reinstall message.
 
 The lazy modular installation is the canonical competition build. Physical testing showed both the flattened importer and the earlier ~22 KiB `main.lua` layout could exhaust Lua allocation headroom while loading another chunk. The Badge IDE Files panel must therefore contain every runtime module alongside the tiny `main.lua`; Import app is not used to add those modules.
 

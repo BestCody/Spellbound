@@ -5,7 +5,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 ## Boot and APIs
 
 - Launch the optional Badge Check app. Confirm x/y/z change as the badge is moved and that the other badge receives an A-triggered ping.
-- Install all 12 files from `dist/app/`: `manifest.cfg`, the 10 Lua files, and `LICENSE.txt`. Do not include `README.md`, `build-info.json`, or `Badge-check.lua` in the Spellbound app. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
+- Install all 12 files from `dist/app/`: `manifest.cfg`, the 10 runtime Lua files, and comment-only `license.lua`. Do not include `README.md`, `build-info.json`, or `Badge-check.lua` in the Spellbound app. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
 - Capture the firmware's external `heap`/app statistics before launch, on Home, after first Teach entry, after training all three spells, after first Find-a-duel entry, during a match, after a maximum-length recording, and after repeated rematches. Production diagnostics are intentionally absent. Record both current and peak Lua usage when the firmware exposes them; acceptance requires every observed Lua value to remain at or below the proposed 40 KiB target.
 - Confirm no startup/tick/button deadline failures. The implementation targets the documented API 2 guide and newer callback allowances, not a guessed chip firmware.
 
@@ -33,9 +33,9 @@ Start with a successful motion-controlled duel and demonstrate a newly taught ge
 
 Keep a copy of the prebuilt modular app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
 
-## Design pass 0.3.0 acceptance
+## Design pass 0.3.1 acceptance
 
-- On a fresh app launch, check Home/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify discovery/acceptance.
+- On a fresh app launch, check Home/Teach before opening Find a duel. Confirm Bluetooth startup is not required for those modes. Then open Find a duel and verify Bluetooth initializes once, before the Duel modules compile, followed by discovery/acceptance. There must be no `BLE_INIT: Malloc failed` or `ESP_ERR_NO_MEM` line.
 - Check OFF/64/160/255 LED effects use a fixed competition brightness.
 - Confirm notifications do not hide the bottom controls, incoming warnings remain visible during capture, and a protected attack shows the shield-ready state.
 - Check long messages for native-font wrapping/clipping. The desktop preview is not LVGL.

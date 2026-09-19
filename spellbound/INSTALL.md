@@ -17,7 +17,7 @@ dist/app/
 ├── net_rx.lua
 ├── net_tick.lua
 ├── engine.lua
-└── LICENSE.txt
+└── license.lua
 ```
 
 Do **not** use the old single-file importer. The physical badge was failing while
@@ -33,9 +33,10 @@ the gesture recognizer and duel engine as separate modules.
    `dist/app/main.lua`.
 5. In the editor's **Files** panel, use **+** to add each support file:
    `app.lua`, `gesture_dtw.lua`, `gesture_sig.lua`, `casting.lua`, `training.lua`,
-   `network.lua`, `net_rx.lua`, `net_tick.lua`, `engine.lua`, and `LICENSE.txt`.
+   `network.lua`, `net_rx.lua`, `net_tick.lua`, `engine.lua`, and `license.lua`.
 6. Paste the matching file from `dist/app/` into each editor file.
-7. Verify exactly **10 Lua files, `manifest.cfg`, and `LICENSE.txt`** are present under the
+7. Verify exactly **11 Lua files (including comment-only `license.lua`) and
+   `manifest.cfg`** are present under the
    same app. Remove editor-only extras such as `README.md`; do not add
    `build-info.json` or `Badge-check.lua` to Spellbound.
 8. Do **not** use **Import app** for support modules. Import app replaces the
@@ -60,16 +61,16 @@ once. Keep both badges close until validation and installation finish. Share
 transfers the complete app directory and verifies its CRC.
 
 Do **not** use the IDE's **Download app** file by itself to give Spellbound to
-someone. That export does not contain the extra Lua modules or `LICENSE.txt`.
+someone. That export does not contain the extra Lua modules or `license.lua`.
 For a computer-to-computer handoff, send the complete `dist/app/` directory as
 one archive and require the recipient to replace all files together.
 
 Before sharing from a badge that received older development builds, confirm its
 Spellbound directory contains exactly the 12 files listed above. IDE Push does
 not remove obsolete remote files. In particular, old `core.lua`, `effects.lua`,
-`gesture.lua`, `net_buttons.lua`, `ui.lua`, or an unwanted `icon.bin` must not be
+`gesture.lua`, `net_buttons.lua`, `ui.lua`, an old `LICENSE.txt`, or an unwanted `icon.bin` must not be
 left in the shared directory. Inspect first and remove only those exact obsolete
-Spellbound files. Version 0.3.0 also rejects mixed generated modules with an
+Spellbound files. Version 0.3.1 also rejects mixed generated modules with an
 explicit reinstall error instead of remaining on `Loading...`.
 
 Both badges should run the same current badge firmware before transfer and play.
