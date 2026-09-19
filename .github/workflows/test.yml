@@ -24,5 +24,7 @@ jobs:
         run: lua5.4 tests/design_pass.lua
       - name: Packaged app smoke test
         run: lua5.4 tests/install_smoke.lua
+      - name: Single-file importer smoke test
+        run: lua5.4 tests/standalone_smoke.lua
       - name: Standalone checker smoke test
         run: lua5.4 tests/checker_smoke.lua
