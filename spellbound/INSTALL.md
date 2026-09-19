@@ -46,7 +46,9 @@ the gesture recognizer and duel engine as separate modules.
 
 The production `main.lua` is intentionally under 1 KiB. It loads only
 `app.lua`. Runtime features are split into micro-modules so every lazy-loaded
-Lua source chunk stays at or below 4 KiB, with GC steps between submodule loads.
+Lua source chunk stays at or below 4 KiB. On the first Teach/Find-a-duel entry,
+the nine-widget UI is deleted before those modules compile; GC runs between
+loads, then the UI is rebuilt.
 
 ## Upload to the first badge
 
@@ -65,15 +67,16 @@ Repeat the same editor setup/push process for the second badge.
 
 The first goal is to determine whether modular compilation fixes startup memory:
 
-1. Open Spellbound on both badges.
-2. Confirm there is no `Lua memory limit exceeded` error while opening it.
-3. Open **Teach a spell** and train Fireball, Shield, and Recharge.
-4. Open **Find a duel** on both.
-5. One player sends an invitation; the other accepts.
-6. Hold A, perform the trained movement, and release to cast.
-7. Verify Fireball causes exactly one 25-HP hit after the warning.
-8. Verify the trained Shield gesture blocks an incoming Fireball.
-9. Verify the trained Recharge gesture restores mana.
+1. Reboot, run `heap`, then open Spellbound.
+2. Run `heap` again and confirm the nine-widget home screen launches.
+3. Enter **Teach a spell** once and capture every `MEM teach-...` line.
+4. Train Fireball, Shield, and Recharge.
+5. Return home, open **Find a duel**, and capture every `MEM duel-...` line.
+6. One player sends an invitation; the other accepts.
+7. Hold A, perform the trained movement, and release to cast.
+8. Verify Fireball causes exactly one 25-HP hit after the warning.
+9. Verify the trained Shield gesture blocks an incoming Fireball.
+10. Verify the trained Recharge gesture restores mana.
 
 If modular startup still fails, capture the exact startup log before removing
 more gameplay features.
