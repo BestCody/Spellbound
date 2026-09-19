@@ -21,7 +21,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 - Explicit opponent discovery, invitation, accept/decline, and retrying pairing handshake.
 - Host-authoritative health, mana, cooldowns, shields, delayed attacks, surrender, wins, and draws.
 - Sequenced commands, duplicate suppression, state snapshots, acknowledgement retries, and disconnect cancellation.
-- Button-delimited accelerometer capture; path-distance-normalized 48-byte templates that tolerate pauses/speed changes; confidence and ambiguity rejection.
+- Button-delimited accelerometer capture; segmented, amplitude-normalized derivative templates; banded DTW; adaptive per-spell thresholds; and relative ambiguity rejection.
 - Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
 - Simplified six-LED spell/damage/victory effects.
@@ -32,7 +32,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 | Context | Controls |
 |---|---|
 | Menus | UP/DOWN select; A opens; B returns |
-| Motion casting | Hold A, move, release; use a deliberate 0.25–3.0 second window. Short waits and speed changes are normalized out; keep a reasonably consistent starting pose. |
+| Motion casting | Hold A, move, release. The A-hold may last up to 4.5 s; the recognizer trims idle and expects roughly 0.16–2.8 s of actual movement. Pauses, moderate speed/strength changes, and baseline offsets are normalized; keep a reasonably consistent badge orientation. |
 | Surrender | Press B twice within 1.8 seconds during a duel |
 | Teach | Select a spell; record three similar examples, then one fresh validation repetition; learned gestures last for the current app session |
 | Exit | HOME; LEDs/radio are cleaned up |
@@ -105,6 +105,6 @@ This creates a **public** `spellbound` repository under the account authenticate
 
 This is a friendly local game, not an authenticated or encrypted competitive protocol. MAC addresses and random match IDs prevent accidental cross-talk, not determined spoofing. Raw movement recordings and learned templates stay only in the current app session; personal badge IDs and names are not broadcast by the app.
 
-GesturePod inspired the interaction concept. This repository contains **original Lua code and no copied GesturePod/EdgeML implementation or pretrained model**. The recognizer is a small template classifier, not a neural network. See [docs/SOURCES.md](docs/SOURCES.md) for API references, and [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) for the remaining physical validation.
+GesturePod inspired the interaction concept. This repository contains **original Lua code and no copied GesturePod/EdgeML implementation or pretrained model**. The recognizer is a small template classifier, not a neural network. See [docs/GESTURE_RECOGNITION_DESIGN.md](docs/GESTURE_RECOGNITION_DESIGN.md) for the current recognizer design, [docs/SOURCES.md](docs/SOURCES.md) for API references, and [docs/HARDWARE_TEST.md](docs/HARDWARE_TEST.md) for physical validation.
 
 MIT licensed; see [LICENSE](LICENSE).

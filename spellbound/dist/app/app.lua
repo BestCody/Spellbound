@@ -73,8 +73,11 @@ end
 local function test_api()
   ensure_casting();S.ensure_gesture();ensure_network();S.ensure_engine()
   return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
+    calibrate=S.calibrate,class_score=S.class_score,
     new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
     split_packet=S.split_packet,receive=S.receive,submit=S.submit,
-    state=function() return {phase=S.phase,role=S.role,match=S.match,view=S.view,pending=S.pending,models=S.models,training=S.training,capture=S.capture,peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}
+    state=function() return {phase=S.phase,role=S.role,match=S.match,view=S.view,pending=S.pending,
+      models=S.models,thresholds=S.thresholds,training=S.training,capture=S.capture,
+      peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}
 end
 return {enter=enter,tick=tick,button=button,exit=exit,test_api=test_api}

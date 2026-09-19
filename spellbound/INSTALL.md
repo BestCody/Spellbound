@@ -109,7 +109,7 @@ Useful read-only console commands are `apps`, `heap`, and `uitree`.
 output. The modular package exists specifically to avoid compiling the complete
 game, recognizer, and engine as one large Lua chunk.
 
-**Gesture fizzles:** use Teach to train deliberate movements within a 0.25-3.0 second hold window. The recognizer ignores small stationary jitter and normalizes gesture progress by motion distance, so short pauses and moderate speed changes should not change the learned shape.
+**Gesture fizzles:** the A-hold can last up to 4.5 seconds; leading/trailing idle is trimmed and the detected gesture itself should be roughly 0.16-2.8 seconds. The recognizer uses smoothed acceleration derivatives, per-gesture amplitude normalization, banded DTW, and a threshold learned from your three examples. If a physical test still fails, copy the `GESTURE ...` serial log lines so the class scores and learned threshold can be inspected.
 
 Desktop tests cannot prove ESP32 compiler allocation, allocator headroom,
 native rendering, radio reliability, or real gesture accuracy. Those still
