@@ -415,16 +415,21 @@ local function leds(now)
 end
 
 function on_enter(root)
-  -- Compile/load support modules while the Lua baseline is still as small as possible.
+  badge.sys.log("SB BOOT A")
   load_components()
+  badge.sys.log("SB BOOT B")
   ui_create(root)
-  -- UI construction is one-shot; release the constructor closures before normal play.
+  badge.sys.log("SB BOOT C")
   ui_create,label=nil,nil
   badge.sys.gc_step()
+  badge.sys.log("SB BOOT D")
   me=mac_key(badge.radio.mac()) or "000000000000"
-  -- Leave Bluetooth off until Find a duel; Teach needs no radio.
+  badge.sys.log("SB BOOT E")
+  render(clock())
+  badge.sys.log("SB BOOT F")
+  leds(clock())
+  badge.sys.log("SB BOOT G")
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
-  render(clock());leds(clock())
 end
 function on_tick()
   local now=clock()
