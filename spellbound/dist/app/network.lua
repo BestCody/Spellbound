@@ -1,16 +1,11 @@
--- Small radio coordinator; RX/tick handlers compile as separate chunks.
+-- Radio coordinator; heavy state handlers compile only on Find a duel.
 return function(S)
   local new_match,apply,advance,pack_state,unpack_state
-  local function unload(name)
-    if package and package.loaded then package.loaded[name]=nil end
-    badge.sys.gc_step()
-  end
   function S.ensure_engine()
     if new_match then return end
     local e=require("engine")
     new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
     S.new_match,S.apply,S.advance,S.pack_state,S.unpack_state=new_match,apply,advance,pack_state,unpack_state
-    if package and package.loaded then package.loaded["engine"]=nil end
     e=nil;badge.sys.gc_step()
   end
   function S.transmit(kind,data)
@@ -47,6 +42,8 @@ return function(S)
       S.seq=S.seq+1;S.pending={seq=S.seq,spell=spell,next=now,started=now}
     end
   end
-  local r=require("net_rx");r(S);unload("net_rx");r=nil
-  local t=require("net_tick");t(S);unload("net_tick");t=nil
+  local r=require("net_rx");r(S);r=nil;badge.sys.gc_step()
+  local t=require("net_tick");t(S);t=nil;badge.sys.gc_step()
+  local b=require("net_buttons");b(S);b=nil;badge.sys.gc_step()
+  local e=require("effects");e(S);e=nil;badge.sys.gc_step()
 end
