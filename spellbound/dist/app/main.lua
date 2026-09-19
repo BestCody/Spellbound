@@ -80,17 +80,25 @@ local raw_sample,signature,distance,recognize
 local new_match,apply,advance,pack_state,unpack_state
 -- Load modules after the main chunk returns, before native UI allocation raises the baseline.
 local function load_components()
+  badge.sys.log("SB MOD 1")
   badge.sys.gc_step()
+  badge.sys.log("SB MOD 2")
   local g=require("gesture")
+  badge.sys.log("SB MOD 3")
   raw_sample,signature,distance,recognize=g.raw_sample,g.signature,g.distance,g.recognize
+  badge.sys.log("SB MOD 4")
   if package and package.loaded then package.loaded["gesture"]=nil end
   g=nil
   badge.sys.gc_step()
+  badge.sys.log("SB MOD 5")
   local e=require("engine")
+  badge.sys.log("SB MOD 6")
   new_match,apply,advance,pack_state,unpack_state=e.new_match,e.apply,e.advance,e.pack,e.unpack
+  badge.sys.log("SB MOD 7")
   if package and package.loaded then package.loaded["engine"]=nil end
   e=nil
   badge.sys.gc_step()
+  badge.sys.log("SB MOD 8")
 end
 local function send_state(now)
   if not match then return end
