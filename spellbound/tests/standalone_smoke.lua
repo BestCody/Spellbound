@@ -15,6 +15,7 @@ for _=1,20 do b:tick() end
 b:tap("DOWN");b:tap("A");b:tap("A")
 local function motion(t) return 1400*math.sin(t*2*math.pi),0,1000 end
 for _=1,4 do b:record(motion,1000) end
+b:tick(100)
 local learned=false
 for _,w in ipairs(b.widgets) do
   if (rawget(w,"text") or ""):find("Fireball [learned]",1,true) then learned=true end
