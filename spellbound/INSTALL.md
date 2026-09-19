@@ -12,8 +12,13 @@ dist/app/
 ├── core.lua
 ├── ui.lua
 ├── network.lua
+├── net_rx.lua
+├── net_tick.lua
 ├── casting.lua
+├── training.lua
 ├── gesture.lua
+├── gesture_sig.lua
+├── gesture_dtw.lua
 └── engine.lua
 ```
 
@@ -29,16 +34,19 @@ the gesture recognizer and duel engine as separate modules.
 4. Open the editor's `main.lua` and replace its contents with
    `dist/app/main.lua`.
 5. In the editor's **Files** panel, use **+** to add each support module:
-   `app.lua`, `core.lua`, `ui.lua`, `network.lua`, `casting.lua`,
-   `gesture.lua`, and `engine.lua`.
+   `app.lua`, `core.lua`, `ui.lua`, `network.lua`, `net_rx.lua`,
+   `net_tick.lua`, `casting.lua`, `training.lua`, `gesture.lua`,
+   `gesture_sig.lua`, `gesture_dtw.lua`, and `engine.lua`.
 6. Paste the matching file from `dist/app/` into each editor file.
-7. Verify all eight Lua files plus the manifest are present under the same app.
+7. Verify exactly **13 Lua files plus `manifest.cfg`** are present under the
+   same app. Remove editor-only extras such as `README.md`; do not add
+   `build-info.json` or `Badge-check.lua` to Spellbound.
 8. Do **not** use **Import app** for support modules. Import app replaces the
    editor workspace; the **+** button adds a module to the current app.
 
 The production `main.lua` is intentionally under 1 KiB. It loads only
-`app.lua`; the coordinator then lazy-loads heavier feature modules as their
-screens/actions are entered.
+`app.lua`. Runtime features are split into micro-modules so every lazy-loaded
+Lua source chunk stays at or below 4 KiB, with GC steps between submodule loads.
 
 ## Upload to the first badge
 
@@ -80,8 +88,13 @@ src/app.lua
 src/core.lua
 src/ui.lua
 src/network.lua
+src/net_rx.lua
+src/net_tick.lua
 src/casting.lua
+src/training.lua
 src/gesture.lua
+src/gesture_sig.lua
+src/gesture_dtw.lua
 src/engine.lua
 ```
 
