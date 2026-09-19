@@ -83,4 +83,5 @@ local function exit()
   badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
 end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
+
 return APP
