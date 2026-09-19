@@ -40,7 +40,7 @@ Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use 
 
 Only Diagnostics performs its extra observed-reading counts. It compares numeric cached values rather than constructing a diagnostic string every 20 ms during every mode. Its display refreshes every 500 ms. **Changed values per second are not measured sensor sample Hz.** A logs firmware, Lua usage/limit/peak, native widget count, and free system heap once to the IDE console.
 
-The one-shot widget-construction functions are released before loading the game modules, with incremental garbage-collection steps between loads. The default HOME exit is retained; no confirmation dialog silently pauses ticks while multiplayer time continues. Settings are written on a normal exit, not every frame; learned templates keep the existing validated journal save flow.
+The production `main.lua` is now only a lifecycle bootstrap. Startup loads the small coordinator/core/UI path first, while network, casting, gesture recognition, and game-engine chunks are deferred until the corresponding feature actually needs them, with incremental garbage-collection steps between module installs. The default HOME exit is retained; no confirmation dialog silently pauses ticks while multiplayer time continues. Settings are written on a normal exit, not every frame; learned templates keep the existing validated journal save flow.
 
 ### Important memory limitation
 
@@ -50,8 +50,8 @@ Do not merge or demonstrate on the strength of the desktop memory number alone. 
 
 ## Packaging and validation
 
-The slug remains `spellbound`. The physical package contains four files in `dist/app/`: `manifest.cfg`, `main.lua`, `gesture.lua`, and `engine.lua`. No binary assets are required. The clean build remains below the guide's 48 KiB Share bundle ceiling.
+The slug remains `spellbound`. The physical package contains nine files in `dist/app/`: `manifest.cfg` plus eight Lua modules. The production `main.lua` is kept below 2 KiB by the build contract, and the current clean bundle remains below the guide's 48 KiB Share bundle ceiling.
 
-The modular installation is now the canonical competition build. Physical testing showed the legacy one-file importer could hit a Lua memory-limit error while opening the app, so `tools/build.py` no longer generates that flattened artifact. The Badge IDE Files panel must contain both support modules alongside `main.lua`; Import app is not used to add those modules.
+The lazy modular installation is the canonical competition build. Physical testing showed both the flattened importer and the earlier ~22 KiB `main.lua` layout could exhaust Lua allocation headroom while loading another chunk. The Badge IDE Files panel must therefore contain every runtime module alongside the tiny `main.lua`; Import app is not used to add those modules.
 
 Run the core Lua tests, the design regressions in `tests/design_pass.lua`, the manifest-contract tests, the modular production/checker smoke tests, and `tools/build.py --check`. The build now rejects duplicate manifest keys, invalid heap settings, and conflicting HOME options before creating an installer. Physical validation remains unperformed. Inspect actual text wrapping, LED effects use a fixed competition brightness.
