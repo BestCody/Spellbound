@@ -1,0 +1,28 @@
+[
+  {
+    "limit_bytes": 0,
+    "stdlib_bytes": 13460,
+    "compile_peak_bytes": 86387,
+    "after_chunk_bytes": 93577,
+    "after_gc_bytes": 93577,
+    "allocation_rejections": 0,
+    "module_errors": [],
+    "total_peak_bytes": 102718,
+    "success": true,
+    "error": null,
+    "scope": "64-bit desktop Lua 5.4, compile + delayed module initialization; excludes badge native services"
+  },
+  {
+    "limit_bytes": 98304,
+    "stdlib_bytes": 13460,
+    "compile_peak_bytes": 86387,
+    "after_chunk_bytes": 93577,
+    "after_gc_bytes": 93577,
+    "allocation_rejections": 1,
+    "module_errors": [],
+    "total_peak_bytes": 96779,
+    "success": true,
+    "error": null,
+    "scope": "64-bit desktop Lua 5.4, compile + delayed module initialization; excludes badge native services"
+  }
+]

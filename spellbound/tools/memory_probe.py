@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Desktop Lua 5.4 allocation probe. NOT a physical ESP32 memory measurement.
+
+Measures standard libraries + production parsing and delayed module init, without the
+large desktop mock. 64-bit Lua allocation sizes differ from an ESP32 build.
+"""
+from __future__ import annotations
+import ctypes as C
+import ctypes.util
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+def probe(limit: int = 0) -> dict:
+    lua = C.CDLL(ctypes.util.find_library("lua5.4") or "liblua5.4.so.0")
+    libc = C.CDLL(None)
+    libc.realloc.argtypes = [C.c_void_p, C.c_size_t]
+    libc.realloc.restype = C.c_void_p
+    libc.free.argtypes = [C.c_void_p]
+    counter = {"used": 0, "peak": 0, "limit": 0, "rejections": 0}
+    Alloc = C.CFUNCTYPE(C.c_void_p, C.c_void_p, C.c_void_p, C.c_size_t, C.c_size_t)
+    @Alloc
+    def alloc(ud, ptr, old, new):
+        old = old if ptr else 0
+        if new == 0:
+            if ptr: libc.free(ptr)
+            counter["used"] -= old
+            return None
+        if counter["limit"] and counter["used"] - old + new > counter["limit"]:
+            counter["rejections"] += 1
+            return None
+        p = libc.realloc(ptr, new)
+        if p:
+            counter["used"] += new - old
+            counter["peak"] = max(counter["peak"], counter["used"])
+        return p
+    lua.lua_newstate.argtypes = [Alloc, C.c_void_p]
+    lua.lua_newstate.restype = C.c_void_p
+    lua.luaL_requiref.argtypes = [C.c_void_p,C.c_char_p,C.c_void_p,C.c_int]
+    lua.lua_settop.argtypes = [C.c_void_p,C.c_int]
+    lua.luaL_loadbufferx.argtypes = [C.c_void_p,C.c_char_p,C.c_size_t,C.c_char_p,C.c_char_p]
+    lua.lua_pcallk.argtypes = [C.c_void_p,C.c_int,C.c_int,C.c_int,C.c_ssize_t,C.c_void_p]
+    lua.lua_tolstring.argtypes = [C.c_void_p,C.c_int,C.c_void_p]
+    lua.lua_tolstring.restype = C.c_char_p
+    lua.lua_close.argtypes = [C.c_void_p]
+    Callback=C.CFUNCTYPE(C.c_int,C.c_void_p)
+    lua.lua_pushcclosure.argtypes=[C.c_void_p,Callback,C.c_int]
+    lua.lua_setglobal.argtypes=[C.c_void_p,C.c_char_p]
+    lua.lua_pushnil.argtypes=[C.c_void_p]
+    lua.luaL_ref.argtypes=[C.c_void_p,C.c_int]
+    lua.lua_rawgeti.argtypes=[C.c_void_p,C.c_int,C.c_longlong]
+    refs={}
+    module_errors=[]
+    @Callback
+    def require(L):
+        name=lua.lua_tolstring(L,1,None).decode()
+        if name in refs:
+            lua.lua_rawgeti(L,-1001000,refs[name]);return 1
+        source=(ROOT/"src"/(name+".lua")).read_bytes()
+        err=lua.luaL_loadbufferx(L,source,len(source),("@"+name).encode(),b"t")
+        if not err: err=lua.lua_pcallk(L,0,1,0,0,None)
+        if err:
+            module_errors.append(name+": "+lua.lua_tolstring(L,-1,None).decode())
+            lua.lua_pushnil(L);return 1
+        refs[name]=lua.luaL_ref(L,-1001000)
+        lua.lua_rawgeti(L,-1001000,refs[name]);return 1
+    state=lua.lua_newstate(alloc,None)
+    if not state: raise MemoryError()
+    try:
+        for name,entry in [(b"_G","base"),(b"table","table"),(b"string","string"),(b"math","math"),(b"utf8","utf8")]:
+            lua.luaL_requiref(state,name,C.cast(getattr(lua,"luaopen_"+entry),C.c_void_p),1)
+            lua.lua_settop(state,-2)
+        lua.lua_pushcclosure(state,require,0)
+        lua.lua_setglobal(state,b"require")
+        baseline=counter["used"]
+        counter["limit"]=limit
+        source=(ROOT/"src/main.lua").read_bytes().split(b"-- TEST_EXPORTS_BEGIN")[0]+b"\nreturn load_components\n"
+        status=lua.luaL_loadbufferx(state,source,len(source),b"@src/main.lua",b"t")
+        load_peak=counter["peak"]
+        if status==0:
+            status=lua.lua_pcallk(state,0,1,0,0,None)
+        lua.lua_gc.argtypes=[C.c_void_p,C.c_int]
+        if status==0:
+            lua.lua_gc(state,2)
+            status=lua.lua_pcallk(state,0,0,0,0,None)
+        err=lua.lua_tolstring(state,-1,None) if status else None
+        lua.lua_gc.argtypes=[C.c_void_p,C.c_int]
+        lua.lua_gc(state,2)
+        after_gc=counter["used"]
+        return {"limit_bytes":limit,"stdlib_bytes":baseline,"compile_peak_bytes":load_peak,
+                "after_chunk_bytes":counter["used"],"after_gc_bytes":after_gc,"allocation_rejections":counter["rejections"],"module_errors":module_errors,"total_peak_bytes":counter["peak"],
+                "success":status==0,"error":err.decode(errors="replace") if err else None,
+                "scope":"64-bit desktop Lua 5.4, compile + delayed module initialization; excludes badge native services"}
+    finally:
+        lua.lua_close(state)
+
+if __name__=="__main__":
+    print(json.dumps([probe(),probe(96*1024)],indent=2))

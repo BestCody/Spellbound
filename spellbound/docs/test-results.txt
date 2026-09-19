@@ -1,0 +1,54 @@
+Spellbound desktop verification - 2026-09-19
+Lua 5.4 shared-library runner
+
+PASS strict documented API boot + 20-widget UI
+PASS exit clears LEDs and disables radio
+PASS radio failure keeps practice available
+PASS missing accelerometer rejects recording safely
+PASS stationary movement rejected
+PASS short movement rejected
+PASS preset fire synthetic fixture
+PASS preset shield synthetic fixture
+PASS preset recharge synthetic fixture
+PASS template identical distance zero
+PASS ambiguous template does not cast
+PASS personal template overrides preset for that spell
+PASS binary model journal roundtrip
+PASS corrupt model rejected
+PASS failed save preserves old active model
+PASS save survives restart
+PASS corrupt active journal falls back to older slot
+PASS full on-badge teach flow: 3 examples + held-out repetition
+PASS overlong recording rejected
+PASS fire damage delayed and applies once
+PASS shield blocks and is consumed
+PASS late shield cannot undo resolved attack
+PASS duplicate guest sequence cannot double spend
+PASS out-of-order command cannot advance sequence
+PASS mana and cooldown rejected with sequenced response
+PASS recharge capped and cooldown enforced
+PASS simultaneous lethal attacks produce draw
+PASS host and guest surrender semantics
+PASS state is 22 bytes and reconstructs relative timers
+PASS state parser rejects invalid ranges and shape
+PASS packet parser rejects unrelated/malformed frames
+PASS two-badge handshake + guest fire reaches host once
+PASS host fire and guest shield synchronizes
+PASS duplicate/reordered packets do not duplicate damage
+PASS periodic packet loss is recovered
+PASS unrelated session and wrong sender ignored
+PASS guest clock offset does not break handshake or attacks
+PASS disconnect aborts instead of continuing stale match
+PASS random incoming payloads cannot crash app
+PASS ten repeated matches do not accumulate UI widgets
+PASS local timeout remains terminal despite late live state
+PASS NaN accelerometer safely rejects recording
+PASS recognized gesture travels through the real duel action path
+PASS stationary capture never spends multiplayer mana
+PASS declined invitation is not immediately shown again
+PASS host cancellation closes an unaccepted invitation
+
+46 passed, 0 failed
+PASS packaged production boot, controls, training, persistence, cleanup
+PASS standalone hardware checker mock transmit/receive and cleanup
+Verified 31,504 bytes across five runtime files.
