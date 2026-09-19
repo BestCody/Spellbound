@@ -24,7 +24,7 @@ Readable modular source remains under `src/`, and `tools/build.py` reproducibly 
 - Button-delimited accelerometer capture; compact resampled templates; confidence and ambiguity rejection.
 - Three conservative preset gesture rules; personalized training with three examples and a fourth validation attempt.
 - Checked, two-slot local saves, with fallback when the active save is corrupt.
-- Practice, diagnostics, a clearly labelled button-control mode, on-screen projectiles, and six-LED effects.
+- Practice, a clearly labelled button-control mode, on-screen projectiles, and six-LED effects.
 - Tests, reproducible builds, GitHub Actions configuration, and safe new-repository publishing scripts.
 
 ## Controls
