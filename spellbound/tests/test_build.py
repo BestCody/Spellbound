@@ -25,16 +25,26 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(BASE + "home_button=1\nconfirm_home=1\n")
 
-    def test_startup_loads_modules_before_ui(self):
+    def test_main_is_tiny_bootstrap(self):
         main = (ROOT / "src" / "main.lua").read_text()
-        enter = main.split("function on_enter(root)", 1)[1].split("function on_tick()", 1)[0]
-        self.assertLess(enter.index("load_components()"), enter.index("ui_create(root)"))
-        self.assertIn("ui_create,label=nil,nil", enter)
+        production = main.split("-- TEST_EXPORTS_BEGIN", 1)[0]
+        self.assertLess(len(production.encode()), 2048)
+        self.assertIn('require("app")', production)
+        self.assertNotIn('require("gesture")', production)
+        self.assertNotIn('require("engine")', production)
+        self.assertNotIn('badge.ui.', production)
 
-        loader = main.split("local function load_components()", 1)[1].split(
-            "local function send_state", 1
-        )[0]
-        self.assertNotIn("ui_create,label=nil,nil", loader)
+    def test_heavy_features_are_lazy(self):
+        app = (ROOT / "src" / "app.lua").read_text()
+        casting = (ROOT / "src" / "casting.lua").read_text()
+        network = (ROOT / "src" / "network.lua").read_text()
+        self.assertIn('install("ui",root)', app)
+        self.assertIn('install("network")', app)
+        self.assertIn('install("casting")', app)
+        self.assertNotIn('require("gesture")', app)
+        self.assertNotIn('require("engine")', app)
+        self.assertIn('require("gesture")', casting)
+        self.assertIn('require("engine")', network)
 
 if __name__ == "__main__":
     unittest.main()
