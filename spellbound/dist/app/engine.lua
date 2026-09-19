@@ -1,3 +1,4 @@
+if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
 local min,max,floor=math.min,math.max,math.floor
 local function clamp(v,a,b) return min(b,max(a,v)) end
@@ -58,14 +59,14 @@ for i=10,15 do g[i]=0 end
 g[16],g[17],g[18]=seq,result,now
 return g
 end
-S.new_match,S.apply,S.advance,S.pack_state,S.unpack_state=
+S[42],S[3],S[2],S[49],S[75]=
 new_match,apply,advance,pack_state,unpack_state
-function S.leds(now)
-local g=S.role=="host" and S.match or S.view
-local own=S.role=="host" and 1 or 2
-local mode=now<S.effect_until and S.effect or ""
-if S.phase=="result" and g and g[1]==own then mode="W"
-elseif S.phase=="duel" and g then
+S[30]=function(now)
+local g=S[62]=="host" and S[33] or S[76]
+local own=S[62]=="host" and 1 or 2
+local mode=now<S[18] and S[17] or ""
+if S[53]=="result" and g and g[1]==own then mode="W"
+elseif S[53]=="duel" and g then
 local si=own==1 and 6 or 7;local ii=own==1 and 8 or 9
 if g[ii]>now then mode=g[si]>=g[ii] and "S" or "I"
 elseif g[si]>now and mode=="" then mode="S" end

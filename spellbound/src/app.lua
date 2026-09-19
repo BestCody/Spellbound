@@ -1,13 +1,13 @@
 -- Resident coordinator + one-widget home UI. Feature modules install side effects into S.
 local APP={}
 SPELLBOUND_APP=APP
-local S={
-  MAX_CAPTURE=4500,
-  spells={"Fireball","Shield","Recharge"},codes={"F","S","R"},
-  phase="home",selected=1,me="",radio_ok=false,
-  note="",note_until=0,effect="",effect_until=0,
-  next_ui=0,next_led=0,next_gc=0,last_screen=nil,
-}
+local S={}
+S.build_id=3
+S.MAX_CAPTURE=4500
+S.spells,S.codes={"Fireball","Shield","Recharge"},{"F","S","R"}
+S.phase,S.selected,S.me,S.radio_ok="home",1,"",false
+S.note,S.note_until,S.effect,S.effect_until="",0,"",0
+S.next_ui,S.next_led,S.next_gc,S.last_screen=0,0,0,nil
 SPELLBOUND_STATE=S
 local root,label
 
@@ -62,6 +62,9 @@ function S.render(now)
 end
 
 local function gc8() for _=1,8 do badge.sys.gc_step() end end
+local function loaded(v)
+  if not v then error("Spellbound file versions do not match; reinstall every app file") end
+end
 local function drop()
   S.destroy_ui();gc8()
 end
@@ -74,13 +77,19 @@ local function load_teach()
   require("gesture_sig");gc8()
   require("casting");gc8()
   require("training");gc8()
+  loaded(S.recognize and S.signature and S.capture_start and S.teach_button)
 end
 local function load_duel()
   if S.network_tick then return end
   require("network");gc8()
   require("net_rx");gc8()
   require("net_tick");gc8()
-  require("engine");gc8()
+  loaded(S.net_button and S.receive and S.network_tick)
+end
+function S.ensure_engine()
+  if not S.new_match then require("engine");gc8() end
+  loaded(S.new_match and S.apply and S.unpack_state)
+  S.ensure_engine=nil
 end
 local function teach()
   if not S.teach_button then drop();load_teach();load_teach=nil end
@@ -137,12 +146,12 @@ APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
 -- TEST_ONLY_BEGIN
 local function test_api()
   load_teach();load_duel()
+  if S.ensure_engine then S.ensure_engine() end
   return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
-    calibrate=S.calibrate,class_score=S.class_score,
     new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
     split_packet=S.split_packet,receive=S.receive,submit=S.submit,
     state=function() return {phase=S.phase,role=S.role,match=S.match,view=S.view,pending=S.pending,
-      models=S.models,thresholds=S.thresholds,training=S.training,capture=S.capture,
+      models=S.models,training=S.training,capture=S.capture,
       peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}
 end
 APP.test_api=test_api

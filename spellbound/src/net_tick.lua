@@ -3,8 +3,8 @@ local S=SPELLBOUND_STATE
 function S.network_tick(now)
   if not S.radio_ok then return end
   if S.phase=="lobby" then
-    for i=#S.peers-1,1,-2 do if now-S.peers[i+1]>4000 then table.remove(S.peers,i+1);table.remove(S.peers,i) end end
-    S.selected=math.min(math.max(S.selected,1),math.max(1,#S.peers/2))
+    for i=#S.peers-2,1,-3 do if now-S.peers[i+1]>4000 then table.remove(S.peers,i+2);table.remove(S.peers,i+1);table.remove(S.peers,i) end end
+    S.selected=math.min(math.max(S.selected,1),math.max(1,#S.peers/3))
     if now>=S.next_tx then badge.radio.send("SB1|H");S.next_tx=now+850 end
   elseif S.phase=="offer" then
     if now>S.deadline then S.invite=nil;S.phase="lobby" end
@@ -38,12 +38,12 @@ function S.net_render(now,shown)
   local out=""
   if S.phase=="lobby" then
     if #S.peers==0 then out="Searching...\nKeep both badges nearby."
-    else for i=1,#S.peers,2 do
-      local n=(i+1)/2;out=out..(n==S.selected and "> " or "  ").."Badge "..S.peers[i]:sub(-4).."\n"
+    else for i=1,#S.peers,3 do
+      local n=(i+2)/3;out=out..(n==S.selected and "> " or "  ").."Badge "..S.peers[i]:sub(-6).."\n"
     end end
-    return out.."\nRadio code "..S.me:sub(-4).."\nA invite / B back"
+    return out.."\nRadio code "..S.me:sub(-6).."\nA invite / B back"
   elseif S.phase=="offer" then
-    return "Challenge from "..S.invite[1]:sub(-4).."\n\nA accepts / B declines"
+    return "Challenge from "..S.invite[1]:sub(-6).."\n\nA accepts / B declines"
   elseif S.phase=="waiting" then return "Invitation queued.\nWaiting for opponent.\n\nB cancels"
   elseif S.phase=="starting" or S.phase=="joining" then return "Synchronizing...\n\nB cancels" end
   local own=S.role=="host" and 1 or 2

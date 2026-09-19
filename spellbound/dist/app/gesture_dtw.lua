@@ -1,7 +1,8 @@
+if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
 local min,max,sqrt=math.min,math.max,math.sqrt
 local N,BAND,FQ,INF=16,3,32,1e30
-local TRAIN_MAX,TMIN,TMAX,TDEF,RATIO=0.85,0.34,0.68,0.48,0.88
+local TDEF,RATIO=0.48,0.88
 local prev,cur
 local function distance(a,b)
 if type(a)~="string" or type(b)~="string" or #a~=48 or #b~=48 then return 99 end
@@ -24,35 +25,19 @@ end
 return sqrt(prev[BAND+1]/N)
 end
 local function class_score(sig,t)
-if not t or #t==0 then return 99 end
-local a,b=99,99
-for i=1,#t do
-local d=distance(sig,t[i])
-if d<a then b,a=a,d elseif d<b then b=d end
+return t and t[1] and distance(sig,t[1]) or 99
 end
-return #t==1 and a or (a+b)/2
-end
-local function calibrate(t)
-if not t or #t<2 then return TDEF end
-local largest=0
-for i=1,#t-1 do for j=i+1,#t do
-largest=max(largest,distance(t[i],t[j]))
-end end
-return min(TMAX,max(TMIN,largest*1.35+0.08))
-end
-local function recognize(sig,model,thresholds)
-model=model or {{},{},{}};thresholds=thresholds or {}
+local function recognize(sig,model)
+model=model or {{},{},{}}
 local best,bd,rd=nil,99,99
 for s=1,3 do
 local d=class_score(sig,model[s])
 if d<bd then rd=bd;best,bd=s,d elseif d<rd then rd=d end
 end
 if not best or bd>=99 then return nil,"Teach this spell first",bd end
-local th=thresholds[best] or TDEF
 local ratio=rd<99 and (rd>0 and bd/rd or 1) or 0
-if bd>th then return nil,"Fizzle - outside learned range",bd end
+if bd>TDEF then return nil,"Fizzle - outside learned range",bd end
 if rd<99 and bd>=rd*RATIO then return nil,"Ambiguous - try again",bd end
 return best,"Learned gesture",bd
 end
-S.distance,S.class_score,S.calibrate,S.recognize,S.train_max=
-distance,class_score,calibrate,recognize,TRAIN_MAX
+S[16],S[58]=distance,recognize

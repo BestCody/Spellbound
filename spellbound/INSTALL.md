@@ -16,7 +16,8 @@ dist/app/
 ├── network.lua
 ├── net_rx.lua
 ├── net_tick.lua
-└── engine.lua
+├── engine.lua
+└── LICENSE.txt
 ```
 
 Do **not** use the old single-file importer. The physical badge was failing while
@@ -30,11 +31,11 @@ the gesture recognizer and duel engine as separate modules.
 3. Make the editor's app manifest match `dist/app/manifest.cfg`.
 4. Open the editor's `main.lua` and replace its contents with
    `dist/app/main.lua`.
-5. In the editor's **Files** panel, use **+** to add each support module:
+5. In the editor's **Files** panel, use **+** to add each support file:
    `app.lua`, `gesture_dtw.lua`, `gesture_sig.lua`, `casting.lua`, `training.lua`,
-   `network.lua`, `net_rx.lua`, `net_tick.lua`, and `engine.lua`.
+   `network.lua`, `net_rx.lua`, `net_tick.lua`, `engine.lua`, and `LICENSE.txt`.
 6. Paste the matching file from `dist/app/` into each editor file.
-7. Verify exactly **10 Lua files plus `manifest.cfg`** are present under the
+7. Verify exactly **10 Lua files, `manifest.cfg`, and `LICENSE.txt`** are present under the
    same app. Remove editor-only extras such as `README.md`; do not add
    `build-info.json` or `Badge-check.lua` to Spellbound.
 8. Do **not** use **Import app** for support modules. Import app replaces the
@@ -45,9 +46,35 @@ The production `main.lua` is intentionally under 1 KiB and loads only
 feature chunk stays at or below 4 KiB after conservative production compaction.
 On first Teach/Find-a-duel entry, the one-label UI is deleted before compilation.
 Teach adds exactly `gesture_dtw.lua`, `gesture_sig.lua`, `casting.lua`, and
-`training.lua`; Duel adds exactly `network.lua`, `net_rx.lua`, `net_tick.lua`,
-and `engine.lua`. The badge's private `require()` cache cannot be cleared, so
-these modules are side-effect installers rather than cached export tables.
+`training.lua`. Opening Duel adds `network.lua`, `net_rx.lua`, and
+`net_tick.lua`; `engine.lua` is deferred until the user sends or accepts a
+challenge. The badge's private `require()` cache cannot be cleared, so these modules
+are side-effect installers rather than cached export tables.
+
+## Transfer Spellbound to another badge
+
+Use the badge's **Share** app for a badge-to-badge transfer. On the sender, open
+**Share → Send an app → Spellbound → A: offer app** and leave that screen open.
+On the receiver, open **Share → Receive an app**, review the offer, and press A
+once. Keep both badges close until validation and installation finish. Share
+transfers the complete app directory and verifies its CRC.
+
+Do **not** use the IDE's **Download app** file by itself to give Spellbound to
+someone. That export does not contain the extra Lua modules or `LICENSE.txt`.
+For a computer-to-computer handoff, send the complete `dist/app/` directory as
+one archive and require the recipient to replace all files together.
+
+Before sharing from a badge that received older development builds, confirm its
+Spellbound directory contains exactly the 12 files listed above. IDE Push does
+not remove obsolete remote files. In particular, old `core.lua`, `effects.lua`,
+`gesture.lua`, `net_buttons.lua`, `ui.lua`, or an unwanted `icon.bin` must not be
+left in the shared directory. Inspect first and remove only those exact obsolete
+Spellbound files. Version 0.3.0 also rejects mixed generated modules with an
+explicit reinstall error instead of remaining on `Loading...`.
+
+Both badges should run the same current badge firmware before transfer and play.
+If a recipient gets a callback deadline error, update the firmware and reinstall
+the complete 12-file app directory before diagnosing Spellbound itself.
 
 ## Upload to the first badge
 
@@ -64,7 +91,7 @@ Repeat the same editor setup/push process for the second badge.
 
 ## First hardware test
 
-The first goal is to verify the 50-55 KiB device target through the full workflow:
+The first goal is to verify the proposed 40 KiB device target through the full workflow:
 
 1. Reboot, run `heap`, then open Spellbound.
 2. Run `heap` again and confirm the one-widget home screen launches.
@@ -76,7 +103,7 @@ The first goal is to verify the 50-55 KiB device target through the full workflo
 8. Verify Fireball causes exactly one 25-HP hit after the warning.
 9. Verify the trained Shield gesture blocks an incoming Fireball.
 10. Verify the trained Recharge gesture restores mana.
-11. Recheck after a maximum-length recording and repeated matches; Lua used/peak must remain at or below 55 KiB for the target to be accepted.
+11. Recheck after a maximum-length recording and repeated matches; Lua used/peak must remain at or below 40 KiB for the target to be accepted.
 
 If modular startup still fails, capture the exact startup log before removing
 more gameplay features.
@@ -122,7 +149,7 @@ Useful read-only console commands are `apps`, `heap`, and `uitree`.
 output. The modular package exists specifically to avoid compiling the complete
 game, recognizer, and engine as one large Lua chunk.
 
-**Gesture fizzles:** the A-hold can last up to 4.5 seconds; leading/trailing idle is trimmed and the detected gesture itself should be roughly 0.16-2.8 seconds. The recognizer uses smoothed acceleration derivatives, per-gesture amplitude normalization, banded DTW, and a threshold learned from your three examples. Production gesture diagnostics were removed to preserve memory, so record the visible error and exact movement/hold timing when reporting a physical failure.
+**Gesture fizzles:** the A-hold can last up to 4.5 seconds; leading/trailing idle is trimmed and the detected gesture itself should be roughly 0.16-2.8 seconds. The recognizer uses smoothed acceleration derivatives, per-gesture amplitude normalization, banded DTW, and a fixed acceptance threshold. Production gesture diagnostics were removed to preserve memory, so record the visible error and exact movement/hold timing when reporting a physical failure.
 
 Desktop tests cannot prove ESP32 compiler allocation, allocator headroom,
 native rendering, radio reliability, or real gesture accuracy. Those still

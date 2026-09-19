@@ -19,7 +19,7 @@ except ImportError as exc:  # pragma: no cover - optional local profiling tool
 
 ROOT = Path(os.environ.get("SPELLBOUND_PROFILE_ROOT", Path(__file__).resolve().parents[1]))
 os.chdir(ROOT)
-STAGES = ("home", "teach", "trained", "both", "capture")
+STAGES = ("home", "teach", "trained", "duel", "both", "match", "capture")
 
 
 def collect_used(lua: LuaRuntime) -> int:
@@ -44,6 +44,9 @@ def motions(lua: LuaRuntime):
 def advance(badge, motion_set, stop: str) -> None:
     if stop == "home":
         return
+    if stop == "duel":
+        badge.tap(badge, "A")
+        return
     badge.tap(badge, "DOWN")
     badge.tap(badge, "A")
     if stop == "teach":
@@ -52,13 +55,19 @@ def advance(badge, motion_set, stop: str) -> None:
         if index:
             badge.tap(badge, "DOWN")
         badge.tap(badge, "A")
-        for _ in range(4):
+        for _ in range(2):
             badge.record(badge, motion, 1000)
     if stop == "trained":
         return
     badge.tap(badge, "B")
     badge.tap(badge, "A")
     if stop == "both":
+        return
+    if stop == "match":
+        badge.receive(badge, "AA:00:00:00:00:02", "SB1|H")
+        badge.tap(badge, "A")
+        badge.receive(badge, "AA:00:00:00:00:02", "SB1|J|12345678")
+        badge.receive(badge, "AA:00:00:00:00:02", "SB1|K|12345678")
         return
     badge.tap(badge, "B")
     badge.tap(badge, "DOWN")

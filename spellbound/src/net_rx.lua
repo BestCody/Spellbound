@@ -5,11 +5,18 @@ function S.receive(mac,rssi,payload)
   local now=S.clock()
   if payload=="SB1|H" then
     if S.phase=="lobby" then
+      local signal=type(rssi)=="number" and rssi or -127
       local found=false
-      for i=1,#S.peers,2 do
-        if S.peers[i]==from then S.peers[i+1]=now;found=true;break end
+      for i=1,#S.peers,3 do
+        if S.peers[i]==from then S.peers[i+1],S.peers[i+2]=now,signal;found=true;break end
       end
-      if not found and #S.peers<10 then S.peers[#S.peers+1]=from;S.peers[#S.peers+1]=now end
+      if not found and #S.peers<15 then
+        S.peers[#S.peers+1]=from;S.peers[#S.peers+1]=now;S.peers[#S.peers+1]=signal
+      elseif not found then
+        local weak=1
+        for i=4,#S.peers,3 do if S.peers[i+2]<S.peers[weak+2] then weak=i end end
+        if signal>S.peers[weak+2]+3 then S.peers[weak],S.peers[weak+1],S.peers[weak+2]=from,now,signal end
+      end
     end
     return
   end
@@ -17,6 +24,9 @@ function S.receive(mac,rssi,payload)
   if k=="I" then
     if d~=S.me or (S.declined==from..s and now<(S.declined_until or 0)) then return end
     if S.phase=="lobby" then S.invite={from,s};S.phase="offer";S.deadline=now+12000
+    elseif S.phase=="waiting" and from==S.peer and from<S.me then
+      S.sid,S.role,S.phase,S.deadline,S.last_rx,S.next_tx=s,"guest","joining",now+12000,now,0
+      S.seq,S.revision,S.last_revision=0,0,-1;S.locally_ended=false;S.transmit("J")
     elseif S.phase=="joining" and from==S.peer and s==S.sid then S.transmit("J") end
     return
   end

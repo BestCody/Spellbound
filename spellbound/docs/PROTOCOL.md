@@ -22,7 +22,7 @@ The table escapes pipes for Markdown only; actual packet strings contain ordinar
 
 Both users open Find a duel. One invites the selected opponent; the other explicitly accepts. The host sends I until J arrives, sends S until K arrives, then starts and sends T. The guest stays in joining until its first valid T. Repeated J/S/K messages are idempotent and do not reinitialize a live match.
 
-Discovery is limited to five displayed peers, with stale entries removed after four seconds. Invitations/handshakes time out after twelve seconds. A declined invitation is suppressed locally for fourteen seconds to avoid repeated prompts from delayed/retried packets. Only one player should initiate the invitation.
+Discovery retains the five strongest recently heard peers, with stale entries removed after four seconds. The UI shows six radio-address digits to reduce ambiguity. Invitations/handshakes time out after twelve seconds. A declined invitation is suppressed locally for fourteen seconds to avoid repeated prompts from delayed/retried packets. If both players invite simultaneously, the lower normalized radio address remains host and the other side joins it as guest.
 
 ## Command reliability and state
 

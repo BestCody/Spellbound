@@ -57,7 +57,7 @@ def probe(limit: int = 0) -> dict:
         name=lua.lua_tolstring(L,1,None).decode()
         if name in refs:
             lua.lua_rawgeti(L,-1001000,refs[name]);return 1
-        source=(ROOT/"src"/(name+".lua")).read_bytes()
+        source=(ROOT/"dist/app"/(name+".lua")).read_bytes()
         err=lua.luaL_loadbufferx(L,source,len(source),("@"+name).encode(),b"t")
         if not err: err=lua.lua_pcallk(L,0,1,0,0,None)
         if err:
@@ -103,8 +103,8 @@ def probe(limit: int = 0) -> dict:
             lua.lua_settop(state,0)
             return status,error
 
-        main=(ROOT/"src/main.lua").read_bytes().split(b"-- TEST_EXPORTS_BEGIN")[0]
-        status,error=run(main,b"@src/main.lua")
+        main=(ROOT/"dist/app/main.lua").read_bytes()
+        status,error=run(main,b"@dist/app/main.lua")
         stages={"bootstrap_peak_bytes":counter["peak"]}
 
         def load_stage(label: str, names: tuple[str,...]) -> None:
@@ -119,7 +119,8 @@ def probe(limit: int = 0) -> dict:
 
         load_stage("home",("app",))
         load_stage("teach",("gesture_dtw","gesture_sig","casting","training"))
-        load_stage("duel",("network","net_rx","net_tick","engine"))
+        load_stage("duel_lobby",("network","net_rx","net_tick"))
+        load_stage("match_engine",("engine",))
         lua.lua_gc(state,2)
         after_gc=counter["used"]
         return {"limit_bytes":limit,"baseline_bytes":baseline,**stages,

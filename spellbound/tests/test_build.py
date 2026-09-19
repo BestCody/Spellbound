@@ -7,8 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 mod = runpy.run_path(str(ROOT / "tools/build.py"))
 validate = mod["validate_manifest"]
 compact = mod["compact_lua"]
+optimize = mod["optimize_lua"]
 production = mod["production_source"]
 RUNTIME_FILES = mod["RUNTIME_FILES"]
+LICENSE_FILE = mod["LICENSE_FILE"]
 BASE = "slug=spellbound\nname=Spellbound\napi=2\nheap_kb=96\n"
 
 class ManifestTests(unittest.TestCase):
@@ -49,12 +51,18 @@ class MemoryArchitectureTests(unittest.TestCase):
             self.assertNotIn(removed, RUNTIME_FILES)
             self.assertFalse((ROOT / "dist" / "app" / removed).exists())
 
-    def test_teach_and_duel_each_add_four_modules(self):
+    def test_teach_adds_four_and_duel_defers_engine_until_match(self):
         app = (ROOT / "src" / "app.lua").read_text()
         teach = ["gesture_dtw", "gesture_sig", "casting", "training"]
-        duel = ["network", "net_rx", "net_tick", "engine"]
+        duel = ["network", "net_rx", "net_tick"]
         for name in teach + duel:
             self.assertEqual(app.count(f'require("{name}")'), 1)
+        self.assertEqual(app.count('require("engine")'), 1)
+        self.assertIn("function S.ensure_engine()", app)
+        network = (ROOT / "src" / "network.lua").read_text()
+        receive = (ROOT / "src" / "net_rx.lua").read_text()
+        self.assertEqual(network.count("if S.ensure_engine then S.ensure_engine() end"), 2)
+        self.assertNotIn("ensure_engine", receive)
         self.assertLess(app.index('require("gesture_dtw")'), app.index('require("gesture_sig")'))
         self.assertLess(app.index('require("network")'), app.index('require("engine")'))
 
@@ -78,13 +86,31 @@ class MemoryArchitectureTests(unittest.TestCase):
             self.assertNotIn(nested, engine)
 
     def test_generated_package_is_exact_and_compacted(self):
-        expected = set(RUNTIME_FILES) | {"manifest.cfg"}
+        expected = set(RUNTIME_FILES) | {"manifest.cfg", LICENSE_FILE}
         actual = {p.name for p in (ROOT / "dist" / "app").iterdir() if p.is_file()}
         self.assertEqual(actual, expected)
         app_src = (ROOT / "src" / "app.lua").read_text()
         app_out = (ROOT / "dist" / "app" / "app.lua").read_text()
-        self.assertEqual(app_out, compact(production("app.lua", app_src)))
+        self.assertEqual(app_out, compact(optimize(production("app.lua", app_src))))
         self.assertLess(len(app_out), len(app_src))
+
+    def test_production_state_fields_are_compacted(self):
+        output = "\n".join(
+            (ROOT / "dist" / "app" / name).read_text() for name in RUNTIME_FILES
+        )
+        self.assertNotIn("S.network_tick", output)
+        self.assertNotIn("S.handle_signature", output)
+        self.assertIn("S[", output)
+
+    def test_lazy_modules_reject_mixed_generated_versions(self):
+        for name in set(RUNTIME_FILES) - {"main.lua", "app.lua"}:
+            output = (ROOT / "dist" / "app" / name).read_text()
+            self.assertIn("Spellbound file versions do not match", output, name)
+
+    def test_share_bundle_contains_license_notice(self):
+        notice = (ROOT / "dist" / "app" / LICENSE_FILE).read_text()
+        self.assertIn("MIT License", notice)
+        self.assertIn("Copyright (c) 2026 Spellbound contributors", notice)
 
     def test_production_has_no_diagnostic_allocation_paths(self):
         production_text = "\n".join(

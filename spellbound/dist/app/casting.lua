@@ -1,36 +1,37 @@
+if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
-local raw_sample,signature=S.raw_sample,S.signature
+local raw_sample,signature=S[56],S[67]
 local function read_accel()
 local x,y,z=badge.sensor.accel()
 if type(x)=="number" and type(y)=="number" and type(z)=="number" and x==x and y==y and z==z
 and math.max(math.abs(x),math.abs(y),math.abs(z))<=32000 then return x,y,z end
 end
 local function sample(now)
-local c=S.capture
+local c=S[5]
 if not c or now-c[2]<20 then return end
 local x,y,z=read_accel();if not x then c[4]=true;return end
 local e=now-c[1]
-if e<=S.MAX_CAPTURE then c[3]=c[3]..raw_sample(e,x,y,z) end
+if e<=S[1] then c[3]=c[3]..raw_sample(e,x,y,z) end
 c[2]=now
 end
-function S.capture_start(now)
+S[7]=function(now)
 local x,y,z=read_accel()
-if not x then S.message("Motion sensor unavailable / invalid","X");return end
-S.capture={now,now,raw_sample(0,x,y,z),false};S.effect=""
+if not x then S[35]("Motion sensor unavailable / invalid","X");return end
+S[5]={now,now,raw_sample(0,x,y,z),false};S[17]=""
 end
-function S.capture_finish(now,too_long)
-local c=S.capture;if not c then return end
-sample(now);c=S.capture
-local raw,bad=c[3],c[4];S.capture=nil
+S[6]=function(now,too_long)
+local c=S[5];if not c then return end
+sample(now);c=S[5]
+local raw,bad=c[3],c[4];S[5]=nil
 if bad or too_long then
-S.message(too_long and "A hold too long - try again" or "Sensor sample invalid","X");return
+S[35](too_long and "A hold too long - try again" or "Sensor sample invalid","X");return
 end
 local sig,err=signature(raw);raw=nil
-if not sig then S.message(err or "No clear movement","X");return end
-S.handle_signature(sig)
+if not sig then S[35](err or "No clear movement","X");return end
+S[22](sig)
 end
-function S.capture_tick(now)
-local c=S.capture;if not c then return end
-if now-c[1]>S.MAX_CAPTURE then S.capture_finish(now,true)
-else sample(now);if not badge.input.is_down(badge.input.BUTTON.A) then S.capture_finish(now,false) end end
+S[8]=function(now)
+local c=S[5];if not c then return end
+if now-c[1]>S[1] then S[6](now,true)
+else sample(now);if not badge.input.is_down(badge.input.BUTTON.A) then S[6](now,false) end end
 end

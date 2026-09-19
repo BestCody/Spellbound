@@ -12,7 +12,7 @@ The design targets failures observed with the previous recognizer:
 - slower or faster repetitions changed the acceleration waveform;
 - hand tremor and orientation drift could become fake path distance;
 - one noisy first training example could poison the rest of teaching;
-- fixed global thresholds did not reflect each user's natural repeatability;
+- a fixed global threshold must balance repeatability against false accepts;
 - generic UI failures did not expose why a physical recording was rejected.
 
 The badge exposes cached 3-axis acceleration at 50 Hz and no continuous gyro stream, so this design does not claim full world-frame or yaw invariance.
@@ -49,10 +49,10 @@ The badge exposes cached 3-axis acceleration at 50 Hz and no continuous gyro str
     banded DTW (+/-3 nodes)
        |
        v
-    two-nearest-template class score
+    single-template class distance
        |
        v
-    per-spell learned threshold
+    fixed acceptance threshold
        |
        v
     single relative runner-up margin
@@ -91,14 +91,14 @@ These are physical-test tuning points, not universal sensor truths.
 
 Raw samples are transient and are not learned templates.
 
-Each sample is 8 bytes:
+Each sample is 5 bytes:
 
     uint16 elapsed_ms
-    int16  x / 32 mg
-    int16  y / 32 mg
-    int16  z / 32 mg
+    uint8  x / 64 mg, biased by 128
+    uint8  y / 64 mg, biased by 128
+    uint8  z / 64 mg, biased by 128
 
-This replaces the previous one-byte-per-axis capture representation that effectively saturated around +/-4 g. The learned model remains 48 bytes per template.
+This compact representation covers approximately +/-8.1 g after quantization. The separate input sanity guard accepts finite source readings up to 32 g, so energetic motion is clamped into the raw representation instead of invalidating the complete recording. The learned model remains 48 bytes per template.
 
 The input sanity guard accepts finite readings up to 32 g rather than rejecting a whole recording when a legitimate wrist flick exceeds 4 g.
 
@@ -139,43 +139,22 @@ Template distance is no longer point-for-point Euclidean distance.
 
 A dynamic-time-warping path is allowed within +/-3 nodes around the diagonal. This permits local speed changes and short hesitations while preventing arbitrary sequence rearrangement.
 
-The implementation reuses two 17-entry work rows rather than allocating a full 16x16 matrix for every comparison.
+The implementation reuses two 7-entry band rows rather than allocating a full 16x16 matrix for every comparison.
 
-Class score is the mean of the two closest template distances when a spell has three examples. This prevents one lucky or outlier template from dominating classification.
+Class score is the DTW distance to the spell's single stored example.
 
-## Teaching and adaptive thresholds
+## Teaching and validation
 
-Each spell still uses:
+Each spell uses:
 
-    3 teaching examples
+    1 teaching example
     + 1 fresh validation repetition
 
-But the heuristics are now user-adaptive.
-
-### First two examples
-
-A second example that is extremely far from the first no longer traps the training session. It replaces the first sample as the new baseline and asks the user to repeat that movement.
-
-### Third example
-
-A third example must be plausibly related to the established pair. The loose obviously-different guard is:
-
-    nearest prior DTW distance <= 0.85
-
-This is not the final casting threshold.
-
-### Per-spell calibration
-
-After three examples, compute all pairwise DTW distances.
-
-    spread = largest pairwise distance
-    threshold = clamp(spread * 1.35 + 0.08, 0.34, 0.68)
-
-A very consistent user's Fireball therefore gets a tighter class than a naturally variable user's Shield, while no class can become arbitrarily permissive.
+The single example keeps teaching quick and reduces retained template/table memory. Classification uses the fixed 0.48 acceptance threshold.
 
 ### Fresh validation
 
-The fourth repetition is classified against the three new examples for this spell, all previously learned spell classes, and the newly calibrated per-spell threshold.
+The second repetition is classified against the new example for this spell, all previously learned spell classes, and the fixed threshold.
 
 The spell is committed only when that held-out repetition is accepted.
 
@@ -201,15 +180,15 @@ The recognizer remains lazy-loaded on first motion capture.
 
 Persistent learned payload:
 
-    3 spells x 3 examples x 48 bytes = 432 raw template bytes
+    3 spells x 1 example x 48 bytes = 144 raw template bytes
 
-plus Lua table/string overhead and three small thresholds.
+plus Lua table/string overhead.
 
 DTW working state is two short rows and is reused across comparisons. Raw capture is transient; each sample uses a two-byte timestamp and three quantized axis bytes, so a 50 Hz, 4.5 s hold is roughly 1.1 KiB before Lua string overhead.
 
 ## Automated validation
 
-Desktop tests cover leading/trailing idle, faster/slower execution, nonlinear time warping, amplitude scaling, deterministic jitter, constant baseline offsets, button-press impulse, >4 g input, adaptive threshold calibration, ambiguity between indistinguishable classes, and the existing two-badge gameplay/protocol regressions.
+Desktop tests cover leading/trailing idle, faster/slower execution, nonlinear time warping, amplitude scaling, deterministic jitter, constant baseline offsets, button-press impulse, >4 g input, single-example held-out validation, ambiguity between indistinguishable classes, and the existing two-badge gameplay/protocol regressions.
 
 These are deliberately less idealized than the earlier same-waveform-different-timestamps checks, but they still cannot replace physical badge recordings.
 

@@ -6,23 +6,23 @@ Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. T
 
 **Implementation status:** complete source and desktop tests are included. The physical competition build is the lazy modular package in `dist/app/`, with a sub-1 KiB production `main.lua` bootstrap and feature modules loaded only when needed. The app still needs physical validation for ESP32 memory/timing, rendering, radio reliability, and real gesture accuracy.
 
-## Design pass 0.2.0
+## Design pass 0.3.0
 
 The badge-native pass adds clearer health/mana hierarchy, a separate notification area and control footer, shield/pending-command feedback, physically mapped LED effects with an off option, and lazy radio startup. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates.
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The startup UI uses one native label and startup caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, four multiplayer modules are loaded. The badge's private `require()` cache cannot be cleared, so unused wrappers and production diagnostics have been removed rather than pretending to unload them.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The startup UI uses one native label and startup caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, only discovery, receive, and tick/render modules load; the match engine waits until the user sends or accepts a challenge, keeping compilation out of the tighter radio callback. The badge's private `require()` cache cannot be cleared, so unused wrappers and production diagnostics have been removed rather than pretending to unload them.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
 ## Implemented
 
-- Explicit opponent discovery, invitation, accept/decline, and retrying pairing handshake.
+- Strongest-nearby opponent discovery, invitation, accept/decline, simultaneous-invite resolution, and retrying pairing handshake.
 - Host-authoritative health, mana, cooldowns, shields, delayed attacks, surrender, wins, and draws.
 - Sequenced commands, duplicate suppression, state snapshots, acknowledgement retries, and disconnect cancellation.
-- Button-delimited accelerometer capture; segmented, amplitude-normalized derivative templates; banded DTW; adaptive per-spell thresholds; and relative ambiguity rejection.
-- Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
+- Button-delimited accelerometer capture; segmented, amplitude-normalized derivative templates; banded DTW; a fixed acceptance threshold; and relative ambiguity rejection.
+- Trained-template gesture recognition only; each spell is taught with one example and one fresh validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
 - One-widget resident UI; Teach/Duel rendering is installed lazily, and gesture models plus multiplayer state do not exist until those modes are opened.
 - Simplified six-LED spell/damage/victory effects.
@@ -35,7 +35,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 | Menus | UP/DOWN select; A opens; B returns |
 | Motion casting | Hold A, move, release. The A-hold may last up to 4.5 s; the recognizer trims idle and expects roughly 0.16–2.8 s of actual movement. Pauses, moderate speed/strength changes, and baseline offsets are normalized; keep a reasonably consistent badge orientation. |
 | Surrender | Press B twice within 1.8 seconds during a duel |
-| Teach | Select a spell; record three similar examples, then one fresh validation repetition; learned gestures last for the current app session |
+| Teach | Select a spell; record one example, then one fresh validation repetition; learned gestures last for the current app session |
 | Exit | HOME; LEDs/radio are cleaned up |
 
 Use controlled handheld movements. Do not swing a badge by its lanyard. A rejected gesture consumes no mana and sends no cast. Accepted gestures can still be rejected by the host for insufficient mana or a cooldown.
@@ -70,7 +70,7 @@ src/training.lua      Teaching, lazy models + Teach renderer
 src/gesture_sig.lua   Segmentation + normalized derivative signatures
 src/gesture_dtw.lua   Banded DTW + classification with lazy 14-cell workspace
 src/engine.lua        Flat host game state + rules + duel LED effects
-dist/app/             11-file runtime package (10 Lua + manifest)
+dist/app/             12-file Share package (10 Lua + manifest + MIT notice)
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)

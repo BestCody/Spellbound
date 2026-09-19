@@ -1,65 +1,50 @@
+if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
-S.models=S.models or {{},{},{}}
-S.thresholds=S.thresholds or {}
-function S.handle_signature(sig)
-if S.phase=="teach" and S.training then
-local spell=S.training[1];local samples=S.training[2]
-if #samples<3 then
-local nearest=99
-for i=1,#samples do nearest=math.min(nearest,S.distance(sig,samples[i])) end
-if #samples==1 and nearest>S.train_max then
-samples[1]=sig
-S.message("New baseline saved - repeat it","R");return
-elseif #samples>1 and nearest>S.train_max then
-S.message("Movement changed too much - repeat","X");return
+S[38]=S[38] or {{},{},{}}
+S[22]=function(sig)
+if S[53]=="teach" and S[73] then
+local spell=S[73][1];local samples=S[73][2]
+if #samples==0 then
+samples[1]=sig;S[35]("Now test with a NEW repetition","R");return
 end
-samples[#samples+1]=sig
-if #samples==3 then
-S.training[3]=S.calibrate(samples)
-S.message("Now test with a NEW repetition","R")
-else S.message("Example saved in RAM","R") end
-return
-end
-local oldm,oldt=S.models[spell],S.thresholds[spell]
-local th=S.training[3] or S.calibrate(samples)
-S.models[spell],S.thresholds[spell]=samples,th
-local id,why=S.recognize(sig,S.models,S.thresholds)
+local old=S[38][spell];S[38][spell]=samples
+local id,why=S[58](sig,S[38])
 if id~=spell then
-S.models[spell],S.thresholds[spell]=oldm,oldt
-if id then S.message("Looks like "..S.spells[id].." - make it distinct","X")
-else S.message(why or "Test failed - repeat","X") end
+S[38][spell]=old
+if id then S[35]("Looks like "..S[68][id].." - make it distinct","X")
+else S[35](why or "Test failed - repeat","X") end
 return
 end
-S.message(S.spells[id].." learned for this session","R",4000)
-S.training=nil;S.phase="train_select";return
+S[35](S[68][id].." learned for this session","R",4000)
+S[73]=nil;S[53]="train_select";return
 end
-local id,why=S.recognize(sig,S.models,S.thresholds)
-if id and S.submit then S.submit(id) else S.message(why or "Duel unavailable","X") end
+local id,why=S[58](sig,S[38])
+if id and S[70] then S[70](id) else S[35](why or "Duel unavailable","X") end
 end
-function S.teach_render(now,shown)
+S[72]=function(now,shown)
 local out=""
-if S.phase=="train_select" then
+if S[53]=="train_select" then
 for n=1,3 do
-out=out..(n==S.selected and "> " or "  ")..S.spells[n]..
-(#S.models[n]>0 and " [learned]" or " [untrained]").."\n"
+out=out..(n==S[63] and "> " or "  ")..S[68][n]..
+(#S[38][n]>0 and " [learned]" or " [untrained]").."\n"
 end
-return out.."\n"..(shown~="" and shown or "3 examples + fresh test").."\nA open / B back"
+return out.."\n"..(shown~="" and shown or "1 example + fresh test").."\nA open / B back"
 end
-local tr=S.training;local samples=tr and tr[2] or {}
-return S.spells[tr[1]].."\n"..
-(#samples<3 and ("Example "..(#samples+1).." of 3") or "Fresh test repetition")..
+local tr=S[73];local samples=tr and tr[2] or {}
+return S[68][tr[1]].."\n"..
+(#samples==0 and "Training example" or "Fresh test repetition")..
 "\n\nHold A, move, release.\n"..(shown~="" and shown or "Idle before/after is trimmed").."\nB cancels"
 end
-function S.teach_button(button,kind,now)
+S[71]=function(button,kind,now)
 local B,K=badge.input.BUTTON,badge.input.KIND
 if kind~=K.PRESSED then return end
 if button==B.B then
-S.capture=nil
-if S.phase=="teach" then S.training=nil;S.phase="train_select"
-else S.reset_home() end
-elseif S.phase=="train_select" then
-if button==B.UP then S.selected=(S.selected+1)%3+1
-elseif button==B.DOWN then S.selected=S.selected%3+1
-elseif button==B.A then S.training={S.selected,{}};S.phase="teach" end
-elseif S.phase=="teach" and button==B.A and not S.capture then S.capture_start(now) end
+S[5]=nil
+if S[53]=="teach" then S[73]=nil;S[53]="train_select"
+else S[60]() end
+elseif S[53]=="train_select" then
+if button==B.UP then S[63]=(S[63]+1)%3+1
+elseif button==B.DOWN then S[63]=S[63]%3+1
+elseif button==B.A then S[73]={S[63],{}};S[53]="teach" end
+elseif S[53]=="teach" and button==B.A and not S[5] then S[7](now) end
 end

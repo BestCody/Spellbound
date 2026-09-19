@@ -1,3 +1,4 @@
+if SPELLBOUND_STATE[4]~=3 then error("Spellbound file versions do not match; reinstall every app file") end
 local S=SPELLBOUND_STATE
 local floor,min,max,sqrt=math.floor,math.min,math.max,math.sqrt
 local N,B,RQ,FQ=16,5,64,32
@@ -15,17 +16,16 @@ local a,b,c,d,e=raw:byte(p,p+4)
 if not e then return nil end
 return a*256+b,(c-128)*RQ,(d-128)*RQ,(e-128)*RQ
 end
-local function smooth(raw,n,i)
-local lo,hi=max(1,i-1),min(n,i+1)
-local x,y,z,c=0,0,0,0
-for j=lo,hi do
-local _,a,b,d=unpack(raw,(j-1)*B+1);x,y,z,c=x+a,y+b,z+d,c+1
-end
-return x/c,y/c,z/c
-end
 local function delta(raw,n,i,lag)
-local x,y,z=smooth(raw,n,i);local a,b,c=smooth(raw,n,max(1,i-lag))
-return x-a,y-b,z-c
+local x,y,z,a,b,c,p,q=0,0,0,0,0,0,0,0
+for j=max(1,i-1),min(n,i+1) do
+local _,u,v,w=unpack(raw,(j-1)*B+1);x,y,z,p=x+u,y+v,z+w,p+1
+end
+i=max(1,i-lag)
+for j=max(1,i-1),min(n,i+1) do
+local _,u,v,w=unpack(raw,(j-1)*B+1);a,b,c,q=a+u,b+v,c+w,q+1
+end
+return x/p-a/q,y/p-b/q,z/p-c/q
 end
 local function signature(raw)
 local n=#raw/B
@@ -37,7 +37,7 @@ for i=1,bn do local _,x,y,z=unpack(raw,(i-1)*B+1);bx,by,bz=bx+x,by+y,bz+z end
 bx,by,bz=bx/bn,by/bn,bz/bn
 local start,mark
 for i=5,n do
-local x,y,z=smooth(raw,n,i);local a,b,c=delta(raw,n,i,3)
+local _,x,y,z=unpack(raw,(i-1)*B+1);local a,b,c=delta(raw,n,i,3)
 local dv=sqrt(a*a+b*b+c*c);local base=sqrt((x-bx)^2+(y-by)^2+(z-bz)^2)
 if (dv>=START_DV and base>=START_BASE) or base>=START_STRONG then
 if mark and i-mark<=2 then start=max(2,mark-2);break end
@@ -72,4 +72,4 @@ out=out..string.char(q(x+(u-x)*f),q(y+(v-y)*f),q(z+(w-z)*f))
 end
 return out
 end
-S.raw_sample,S.signature=raw_sample,signature
+S[56],S[67]=raw_sample,signature

@@ -1,133 +1,142 @@
 local APP={}
 SPELLBOUND_APP=APP
-local S={
-MAX_CAPTURE=4500,
-spells={"Fireball","Shield","Recharge"},codes={"F","S","R"},
-phase="home",selected=1,me="",radio_ok=false,
-note="",note_until=0,effect="",effect_until=0,
-next_ui=0,next_led=0,next_gc=0,last_screen=nil,
-}
+local S={}
+S[4]=3
+S[1]=4500
+S[68],S[10]={"Fireball","Shield","Recharge"},{"F","S","R"}
+S[53],S[63],S[34],S[54]="home",1,"",false
+S[47],S[48],S[17],S[18]="",0,"",0
+S[46],S[44],S[43],S[27]=0,0,0,nil
 SPELLBOUND_STATE=S
 local root,label
-function S.clock() return badge.sys.ms() end
-function S.mac_key(v)
+S[9]=function() return badge.sys.ms() end
+S[32]=function(v)
 if type(v)~="string" then return nil end
 local s=string.upper((v:gsub(":","")))
 if #s~=12 or s:find("[^0-9A-F]") then return nil end
 return s
 end
-function S.message(s,fx,duration)
-S.note,S.note_until=s,S.clock()+(duration or 2000)
-if fx then S.effect,S.effect_until=fx,S.clock()+700 end
+S[35]=function(s,fx,duration)
+S[47],S[48]=s,S[9]()+(duration or 2000)
+if fx then S[17],S[18]=fx,S[9]()+700 end
 end
-function S.reset_home()
-S.phase,S.selected="home",1
-S.mode_button,S.mode_render=nil,nil
-S.capture,S.training=nil,nil
-S.role,S.peer,S.sid,S.match,S.pending,S.view,S.invite=nil,nil,nil,nil,nil,nil,nil
-S.peers=nil
-S.seq,S.revision,S.last_revision=0,0,-1
-S.next_tx,S.leave_until,S.locally_ended=0,0,false
-S.last_rx,S.last_state_tx,S.last_ping,S.deadline=0,0,0,0
-S.declined,S.declined_until=nil,0
-S.note,S.note_until,S.effect,S.effect_until="",0,"",0
-S.last_screen=nil
+S[60]=function()
+S[53],S[63]="home",1
+S[36],S[37]=nil,nil
+S[5],S[73]=nil,nil
+S[62],S[50],S[66],S[33],S[52],S[76],S[23]=nil,nil,nil,nil,nil,nil,nil
+S[51]=nil
+S[65],S[61],S[25]=0,0,-1
+S[45],S[29],S[31]=0,0,false
+S[26],S[28],S[24],S[12]=0,0,0,0
+S[13],S[14]=nil,0
+S[47],S[48],S[17],S[18]="",0,"",0
+S[27]=nil
 end
-function S.destroy_ui()
+S[15]=function()
 if label then label:delete();label=nil end
-S.last_screen=nil
+S[27]=nil
 end
-function S.create_ui(parent)
+S[11]=function(parent)
 if label then return end
 label=badge.ui.label(parent,"")
 label:set_pos(12,8);label:set_size(296,224)
 label:style({text_font=14,text_color=0xE8E4F5,pad_all=0})
-S.last_screen=nil
+S[27]=nil
 end
-function S.render(now)
+S[59]=function(now)
 if not label then return end
-local shown=now<S.note_until and S.note or ""
-local out="SPELLBOUND / "..string.upper(S.phase:gsub("_"," ")).." / "..S.me:sub(-4).."\n\n"
-if S.phase=="home" then
-out=out..(S.selected==1 and "> " or "  ").."Find a duel\n"..
-(S.selected==2 and "> " or "  ").."Teach a spell\n\n"..
-(shown~="" and shown or ("Radio "..(S.radio_ok and "ON" or "OFF")))..
+local shown=now<S[48] and S[47] or ""
+local out="SPELLBOUND / "..string.upper(S[53]:gsub("_"," ")).." / "..S[34]:sub(-4).."\n\n"
+if S[53]=="home" then
+out=out..(S[63]==1 and "> " or "  ").."Find a duel\n"..
+(S[63]==2 and "> " or "  ").."Teach a spell\n\n"..
+(shown~="" and shown or ("Radio "..(S[54] and "ON" or "OFF")))..
 "\nA open / B back"
-elseif S.mode_render then
-out=out..S.mode_render(now,shown)
+elseif S[37] then
+out=out..S[37](now,shown)
 else out=out.."Loading..." end
-if S.last_screen~=out then label:set_text(out);S.last_screen=out end
+if S[27]~=out then label:set_text(out);S[27]=out end
 end
 local function gc8() for _=1,8 do badge.sys.gc_step() end end
+local function loaded(v)
+if not v then error("Spellbound file versions do not match; reinstall every app file") end
+end
 local function drop()
-S.destroy_ui();gc8()
+S[15]();gc8()
 end
 local function rebuild()
-gc8();S.create_ui(root);S.render(S.clock())
+gc8();S[11](root);S[59](S[9]())
 end
 local function load_teach()
-if S.teach_button then return end
+if S[71] then return end
 require("gesture_dtw");gc8()
 require("gesture_sig");gc8()
 require("casting");gc8()
 require("training");gc8()
+loaded(S[58] and S[67] and S[7] and S[71])
 end
 local function load_duel()
-if S.network_tick then return end
+if S[41] then return end
 require("network");gc8()
 require("net_rx");gc8()
 require("net_tick");gc8()
-require("engine");gc8()
+loaded(S[39] and S[57] and S[41])
+end
+S[20]=function()
+if not S[42] then require("engine");gc8() end
+loaded(S[42] and S[3] and S[75])
+S[20]=nil
 end
 local function teach()
-if not S.teach_button then drop();load_teach();load_teach=nil end
-S.phase,S.selected="train_select",1
-S.mode_button,S.mode_render=S.teach_button,S.teach_render
-if not label then rebuild() else S.render(S.clock()) end
+if not S[71] then drop();load_teach();load_teach=nil end
+S[53],S[63]="train_select",1
+S[36],S[37]=S[71],S[72]
+if not label then rebuild() else S[59](S[9]()) end
 end
 local function duel()
-if not S.network_tick then drop();load_duel();load_duel=nil end
-if not S.radio_started then
-S.radio_started=badge.radio.enable()==true
-S.me=S.mac_key(badge.radio.mac()) or S.me
-S.radio_ok=S.radio_started and S.me~="000000000000"
-if S.radio_ok then badge.radio.on_recv(S.receive) end
+if not S[41] then drop();load_duel();load_duel=nil end
+if not S[55] then
+S[55]=badge.radio.enable()==true
+S[34]=S[32](badge.radio.mac()) or S[34]
+S[54]=S[55] and S[34]~="000000000000"
+if S[54] then badge.radio.on_recv(S[57]) end
 end
-if S.radio_ok then
-S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
-S.mode_button,S.mode_render=S.net_button,S.net_render
+if S[54] then
+S[53],S[51],S[63],S[45]="lobby",{},1,0
+S[36],S[37]=S[39],S[40]
 else
-S.phase="home";S.message("Radio unavailable; HOME then reopen","X")
+S[53]="home";S[35]("Radio unavailable; HOME then reopen","X")
 end
-if not label then rebuild() else S.render(S.clock()) end
+if not label then rebuild() else S[59](S[9]()) end
 end
 local function enter(r)
-root=r;S.create_ui(r)
-S.me=S.mac_key(badge.radio.mac()) or "000000000000"
-local now=S.clock();S.render(now);badge.led.clear();badge.led.show()
+root=r;S[11](r)
+S[34]=S[32](badge.radio.mac()) or "000000000000"
+local now=S[9]();S[59](now);badge.led.clear();badge.led.show()
 end
 local function tick()
-local now=S.clock()
-if S.network_tick then S.network_tick(now) end
-if S.capture and S.capture_tick then S.capture_tick(now) end
-if now>=S.next_ui then S.render(now);S.next_ui=now+100 end
-if S.leds and now>=S.next_led then S.leds(now);S.next_led=now+70 end
-if now>=S.next_gc then badge.sys.gc_step();S.next_gc=now+250 end
+local now=S[9]()
+if S[41] then S[41](now) end
+if S[5] and S[8] then S[8](now) end
+if now>=S[46] then S[59](now);S[46]=now+100 end
+if S[30] and now>=S[44] then S[30](now);S[44]=now+70 end
+if now>=S[43] then badge.sys.gc_step();S[43]=now+250 end
 end
 local function button(b,k)
-local B,K=badge.input.BUTTON,badge.input.KIND;local now=S.clock()
+local B,K=badge.input.BUTTON,badge.input.KIND;local now=S[9]()
 if b==B.A and k==K.RELEASED then
-if S.capture and S.capture_finish then S.capture_finish(now,false) end
+if S[5] and S[6] then S[6](now,false) end
 return
 end
 if k~=K.PRESSED then return end
-if S.phase=="home" then
-if b==B.UP or b==B.DOWN then S.selected=S.selected==1 and 2 or 1
-elseif b==B.A then if S.selected==1 then duel() else teach() end end
-elseif S.mode_button then S.mode_button(b,k,now) end
+if S[53]=="home" then
+if b==B.UP or b==B.DOWN then S[63]=S[63]==1 and 2 or 1
+elseif b==B.A then if S[63]==1 then duel() else teach() end end
+elseif S[36] then S[36](b,k,now) end
 end
 local function exit()
-if S.sid and S.transmit then S.transmit("Q") end
+if S[66] and S[74] then S[74]("Q") end
 badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
 end
 APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit

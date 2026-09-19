@@ -84,7 +84,7 @@ function M.new(opts)
  end
  function c:tap(name) self:press(name);self:release(name) end
  function c:tick(delta) self.now=self.now+(delta or 20);self.env.on_tick() end
- function c:receive(from,p) if self.receiver then self.receiver(from,-45,p) end end
+ function c:receive(from,p,rssi) if self.receiver then self.receiver(from,rssi or -45,p) end end
  function c:state() return self.api.state() end
  function c:record(fn,duration)
   self.accel={fn(0)};self:press("A")

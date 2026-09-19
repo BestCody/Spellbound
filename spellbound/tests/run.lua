@@ -145,16 +145,13 @@ test("ambiguous template does not cast",function()
  local a=Mock.new().api;local s=assert(a.signature(raw(a,fire,1000)));eq(a.recognize(s,{{s},{s},{}}),nil)
 end)
 test("trained template recognizes its assigned spell",function()
- local a=Mock.new().api;local s=assert(a.signature(raw(a,shield,1000)));eq(a.recognize(s,{{s},{},{}},{0.5,nil,nil}),1)
+ local a=Mock.new().api;local s=assert(a.signature(raw(a,shield,1000)));eq(a.recognize(s,{{s},{},{}}),1)
 end)
-test("adaptive spell threshold learns training variance and accepts held-out variant",function()
+test("single example accepts a held-out variant",function()
  local a=Mock.new().api
  local s1=assert(a.signature(raw_variant(a,fire,950,100,80,0.9,0.9,10,0,0,0,0)))
- local s2=assert(a.signature(raw_variant(a,fire,1100,250,100,1.2,1.2,15,50,-30,20,0)))
- local s3=assert(a.signature(raw_variant(a,fire,1000,400,150,1.0,1.0,20,-40,20,30,300)))
- local thr=a.calibrate({s1,s2,s3});assert(thr>=0.34 and thr<=0.68)
  local fresh=assert(a.signature(raw_variant(a,fire,1250,500,300,1.35,1.3,20,80,-50,30,0)))
- local id,why=a.recognize(fresh,{{s1,s2,s3},{},{}},{thr,nil,nil})
+ local id,why=a.recognize(fresh,{{s1},{},{}})
  assert(id==1,why)
 end)
 test("relative ambiguity rule rejects indistinguishable spell classes",function()
@@ -162,16 +159,16 @@ test("relative ambiguity rule rejects indistinguishable spell classes",function(
  local id,why=a.recognize(s,{{s,s,s},{s,s,s},{}},{0.5,0.5,nil})
  assert(id==nil and why:find("Ambiguous",1,true))
 end)
-test("full on-badge teach flow: 3 examples + held-out repetition",function()
+test("full on-badge teach flow: 1 example + held-out repetition",function()
  local b=Mock.new();b:tap("DOWN");b:tap("A");b:tap("A")
  eq(b:state().phase,"teach")
- for _=1,4 do b:record(fire,1000) end
- eq(b:state().phase,"train_select");eq(#b:state().models[1],3)
+ for _=1,2 do b:record(fire,1000) end
+ eq(b:state().phase,"train_select");eq(#b:state().models[1],1)
 end)
 test("taught gestures are session-only",function()
  local b=Mock.new();b:tap("DOWN");b:tap("A");b:tap("A")
- for _=1,4 do b:record(fire,1000) end
- eq(#b:state().models[1],3);eq(b.file_writes,0)
+ for _=1,2 do b:record(fire,1000) end
+ eq(#b:state().models[1],1);eq(b.file_writes,0)
  local c=Mock.new({files=b.files,store=b.store});eq(#c:state().models[1],0)
 end)
 test("overlong recording rejected",function()
@@ -227,6 +224,27 @@ end)
 test("two-badge handshake + guest fire reaches host once",function()
  local a,b,step=setup_pair();b.api.submit(1);step(2400)
  eq(a:state().match[2],75);eq(b:state().view[2],75);eq(b:state().pending,nil)
+end)
+test("simultaneous invitations deterministically resolve",function()
+ local a=Mock.new({mac="AA:00:00:00:00:01"})
+ local b=Mock.new({mac="AA:00:00:00:00:02"})
+ local function relay(x,y) local q=x.sent;x.sent={};for _,m in ipairs(q) do y:receive(x.mac,m.payload) end end
+ local function step(ms) for _=1,math.ceil(ms/20) do a:tick(20);b:tick(20);relay(a,b);relay(b,a) end end
+ a:tap("A");b:tap("A");step(1000);a:tap("A");b:tap("A");step(1800)
+ eq(a:state().phase,"duel");eq(b:state().phase,"duel")
+ eq(a:state().role,"host");eq(b:state().role,"guest")
+end)
+test("discovery retains the five strongest nearby peers",function()
+ local b=Mock.new({mac="AA:00:00:00:00:01"});b:tap("A")
+ for i=2,6 do b:receive(string.format("AA:00:00:00:00:%02X",i),"SB1|H",-80+i) end
+ b:receive("AA:00:00:00:00:07","SB1|H",-20)
+ local peers=b:state().peers;eq(#peers,15)
+ local found,strong=false,false
+ for i=1,#peers,3 do
+  if peers[i]=="AA0000000002" then found=true end
+  if peers[i]=="AA0000000007" then strong=true end
+ end
+ eq(found,false);eq(strong,true)
 end)
 test("host fire and guest shield synchronizes",function()
  local a,b,step=setup_pair();a.api.submit(1);step(400);b.api.submit(2);step(2000)
