@@ -34,6 +34,15 @@ class ManifestTests(unittest.TestCase):
         self.assertNotIn('require("engine")', production)
         self.assertNotIn('badge.ui.', production)
 
+    def test_app_export_has_bootstrap_fallback(self):
+        main = (ROOT / "src" / "main.lua").read_text()
+        app = (ROOT / "src" / "app.lua").read_text()
+        self.assertIn("SPELLBOUND_APP", main)
+        self.assertIn('type(candidate)~="table"', main)
+        self.assertIn("SPELLBOUND_APP=APP", app)
+        self.assertIn("APP.enter,APP.tick,APP.button,APP.exit", app)
+        self.assertLess(app.index("APP.enter,APP.tick,APP.button,APP.exit"), app.index("return APP"))
+
     def test_heavy_features_are_lazy_and_micro_chunked(self):
         app = (ROOT / "src" / "app.lua").read_text()
         casting = (ROOT / "src" / "casting.lua").read_text()
