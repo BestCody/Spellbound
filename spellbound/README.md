@@ -4,7 +4,7 @@
 
 Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. Two badges run a host-authoritative match over the badge's restricted nearby radio channel. No phone, cloud account, external server, replacement firmware, microphone, or extra hardware is required by this implementation.
 
-**Implementation status:** complete source and desktop tests are included. This version has **not been uploaded to or tested on a physical HTN badge**. Preset recognition thresholds are experimental, not measured human-gesture accuracy. Validate motion, memory, rendering, and radio on your two badges before demonstrating it.
+**Implementation status:** complete source and desktop tests are included. `dist/Spellbound-install.lua` is a true single-file Badge IDE import. The app still needs physical validation for ESP32 memory/timing, rendering, radio reliability, and real gesture accuracy.
 
 ## Design pass 0.2.0
 
@@ -12,9 +12,9 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt files; building on your computer is optional. Read **[INSTALL.md](INSTALL.md)** for the precise browser-IDE procedure. **This is a five-file app, not a standalone single-file import.** Import `dist/Spellbound-install.lua`, then add the three support modules from `dist/app` before pressing Push.
+Use the prebuilt **`dist/Spellbound-install.lua`**; building on your computer is optional. Read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. The installer embeds the manifest and all runtime modules, so it can be selected directly with **Import app** and pushed without manually creating support files.
 
-The modular layout is intentional: an early monolithic version exceeded a 96 KiB allocation limit in a 64-bit desktop Lua compile probe. Modules reduce the compilation peak. The final desktop compile/delayed-module-initialization probe does not establish physical badge RAM availability or callback timing.
+Readable modular source remains under `src/`, and `tools/build.py` reproducibly generates both `dist/app/` and the standalone installer. Because the standalone app is compiled as one Lua chunk, physical memory validation remains important.
 
 ## Implemented
 
@@ -67,7 +67,7 @@ src/gesture.lua              Motion resampling, default rules, template classifi
 src/engine.lua               Deterministic game rules and compact state encoding
 src/model_codec.lua          Bounded binary model format and corruption detection
 dist/app/                    The five files to install on each badge
-dist/Spellbound-install.lua  Manifest + main-code starter; requires the modules
+dist/Spellbound-install.lua  Complete one-file Badge IDE import; no extra modules
 dist/Badge-check.lua         Optional standalone sensor/radio diagnostic
 tests/                       Strict API mock and real-Lua automated tests
 tools/build.py               Reproducible packaging (Python 3.10+, no dependencies)
