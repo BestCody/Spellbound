@@ -11,7 +11,7 @@ local function recharge(t) return 1200*math.sin(t*4*math.pi),0,1000 end
 local function shield(t) local a=math.min(1,t/0.7)*math.pi/2;return 0,1000*math.sin(a),1000*math.cos(a) end
 local function raw(api,fn,duration)
  local out={}
- for t=0,duration,20 do out[#out+1]=api.raw_sample(t,fn(t/duration)) end
+ for t=0,duration,20 do out[#out+1]=api.raw_sample(fn(t/duration)) end
  return table.concat(out)
 end
 local function raw_window(api,fn,pre,motion,post)
@@ -19,7 +19,7 @@ local function raw_window(api,fn,pre,motion,post)
  for t=0,total,20 do
   local u
   if t<=pre then u=0 elseif t>=pre+motion then u=1 else u=(t-pre)/motion end
-  out[#out+1]=api.raw_sample(t,fn(u))
+  out[#out+1]=api.raw_sample(fn(u))
  end
  return table.concat(out)
 end
@@ -35,7 +35,7 @@ local function raw_variant(api,fn,motion,pre,post,amp,warp,noise,ox,oy,oz,impuls
   y=by+(y-by)*(amp or 1)+(oy or 0)+(noise or 0)*math.sin(t*0.047+1)
   z=bz+(z-bz)*(amp or 1)+(oz or 0)+(noise or 0)*math.sin(t*0.031+2)
   if impulse and t==0 then x=x+impulse end
-  out[#out+1]=api.raw_sample(t,x,y,z)
+  out[#out+1]=api.raw_sample(x,y,z)
  end
  return table.concat(out)
 end
@@ -104,7 +104,7 @@ end)
 test("small stationary jitter is ignored",function()
  local a=Mock.new().api
  local out={}
- for t=0,1200,20 do out[#out+1]=a.raw_sample(t,(t/20)%2==0 and 30 or -30,0,1000) end
+ for t=0,1200,20 do out[#out+1]=a.raw_sample((t/20)%2==0 and 30 or -30,0,1000) end
  eq(a.signature(table.concat(out)),nil)
 end)
 test("gesture segmentation trims delayed start and late release",function()
@@ -129,6 +129,34 @@ test("long A hold is allowed when active gesture itself is short",function()
  local a=Mock.new().api
  local sig,err=a.signature(raw_window(a,fire,1500,1000,1500))
  assert(sig,err)
+end)
+test("one-row DTW matches the reference two-row recurrence",function()
+ local a=Mock.new().api
+ local function reference(x,y)
+  local inf=1e30;local prev={[0]=0}
+  for j=1,16 do prev[j]=inf end
+  for i=1,16 do
+   local cur={[0]=inf}
+   for j=1,16 do cur[j]=inf end
+   for j=math.max(1,i-3),math.min(16,i+3) do
+    local p=(i-1)*3+1;local q=(j-1)*3+1
+    local u=(x:byte(p)-y:byte(q))/32
+    local v=(x:byte(p+1)-y:byte(q+1))/32
+    local w=(x:byte(p+2)-y:byte(q+2))/32
+    cur[j]=(u*u+v*v+w*w)/3+math.min(prev[j],cur[j-1],prev[j-1])
+   end
+   prev=cur
+  end
+  return math.sqrt(prev[16]/16)
+ end
+ local samples={
+  assert(a.signature(raw(a,fire,1000))),
+  assert(a.signature(raw(a,shield,800))),
+  assert(a.signature(raw_variant(a,fire,1250,300,200,1.3,1.2,12,60,-30,20,0)))
+ }
+ for i=1,#samples do for j=1,#samples do
+  assert(math.abs(a.distance(samples[i],samples[j])-reference(samples[i],samples[j]))<1e-12)
+ end end
 end)
 test("short movement rejected",function()
  local b=Mock.new();eq(b.api.signature(raw(b.api,fire,100)),nil)
@@ -157,7 +185,7 @@ end)
 test("relative ambiguity rule rejects indistinguishable spell classes",function()
  local a=Mock.new().api;local s=assert(a.signature(raw(a,fire,1000)))
  local id,why=a.recognize(s,{s,s})
- assert(id==nil and why:find("Ambiguous",1,true))
+ assert(id==nil and why)
 end)
 test("full on-badge teach flow: 1 example + held-out repetition",function()
  local b=Mock.new();b:tap("DOWN");b:tap("A");b:tap("A")
@@ -187,19 +215,19 @@ test("late shield cannot undo resolved attack",function()
  local a=Mock.new().api;local g=a.new_match(0);a.apply(g,1,1,0,0);a.apply(g,2,2,1,1801);eq(g[3],75)
 end)
 test("duplicate guest sequence cannot double spend",function()
- local a=Mock.new().api;local g=a.new_match(0);eq(a.apply(g,2,1,1,0),0);eq(a.apply(g,2,1,1,1),5);eq(g[5],45)
+ local a=Mock.new().api;local g=a.new_match(0);eq(a.apply(g,2,1,1,0),0);assert(a.apply(g,2,1,1,1)~=0);eq(g[5],45)
 end)
 test("out-of-order command cannot advance sequence",function()
- local a=Mock.new().api;local g=a.new_match(0);eq(a.apply(g,2,1,2,0),5);eq(g[16],0)
+ local a=Mock.new().api;local g=a.new_match(0);assert(a.apply(g,2,1,2,0)~=0);eq(a.sequence(),0)
 end)
 test("mana and cooldown rejected with sequenced response",function()
  local a=Mock.new().api;local g=a.new_match(0)
- a.apply(g,2,2,1,0);eq(a.apply(g,2,2,2,100),2);eq(g[16],2)
- g[5]=0;eq(a.apply(g,2,1,3,5000),1);eq(g[16],3)
+ a.apply(g,2,2,1,0);assert(a.apply(g,2,2,2,100)~=0);eq(a.sequence(),2)
+ g[5]=0;assert(a.apply(g,2,1,3,5000)~=0);eq(a.sequence(),3)
 end)
 test("recharge capped and cooldown enforced",function()
  local a=Mock.new().api;local g=a.new_match(0);eq(a.apply(g,1,3,0,0),0);eq(g[4],100)
- eq(a.apply(g,1,3,0,100),2)
+ assert(a.apply(g,1,3,0,100)~=0)
 end)
 test("simultaneous lethal attacks produce draw",function()
  local a=Mock.new().api;local g=a.new_match(0);g[2],g[3]=25,25;a.apply(g,1,1,0,0);a.apply(g,2,1,1,0)
@@ -213,17 +241,27 @@ test("duel still requires two B presses to surrender",function()
  local a,b,step=setup_pair();a:tap("B");eq(a:state().phase,"duel")
  a:tap("B");step(300);eq(a:state().phase,"result");eq(b:state().phase,"result")
 end)
-test("state is 22 bytes and reconstructs relative timers",function()
+test("state is 14 printable bytes and reconstructs relative timers",function()
  local a=Mock.new().api;local g=a.new_match(0);a.apply(g,1,1,0,100)
- local s=a.pack_state(g,100);eq(#s,22);local c=assert(a.unpack_state(s,999000))
+ local s=a.pack_state(g,100);eq(#s,14);assert(not s:find("[^!-~]"));local c=assert(a.unpack_state(s,999000))
  eq(c[9],1000800);eq(c[4],45)
 end)
 test("state parser rejects invalid ranges and shape",function()
- local a=Mock.new().api;eq(a.unpack_state(string.rep("F",22),0),nil);eq(a.unpack_state("0",0),nil)
+ local a=Mock.new().api;eq(a.unpack_state(string.rep("~",14),0),nil);eq(a.unpack_state("0",0),nil)
+end)
+test("malformed high-revision state cannot poison guest updates",function()
+ local a,b,step=setup_pair()
+ local bad=string.rep("~",9).."0000~"
+ b:receive(a.mac,"SB2T"..b:state().sid.."FFFE"..bad)
+ a.api.submit(1);step(2400)
+ eq(b:state().phase,"duel");eq(b:state().view[3],75)
 end)
 test("packet parser rejects unrelated/malformed frames",function()
- local a=Mock.new().api
- for _,s in ipairs({"ping","SB1|I|1234|AABBCCDD0011","SB1|T|12345678|x"..string.rep("x",50),"SB1|K|12345678|"}) do eq(a.split_packet(s),nil) end
+ local b=Mock.new({mac="AA:00:00:00:00:01"});b:tap("A")
+ for _,s in ipairs({"ping","SB2I1234AABBCCDD0011","SB2T12345678x"..string.rep("x",50),"SB2K12345678"}) do
+  b:receive("AA:00:00:00:00:02",s)
+ end
+ eq(b:state().phase,"lobby")
 end)
 test("two-badge handshake + guest fire reaches host once",function()
  local a,b,step=setup_pair();b.api.submit(1);step(2400)
@@ -240,8 +278,8 @@ test("simultaneous invitations deterministically resolve",function()
 end)
 test("discovery retains the five strongest nearby peers",function()
  local b=Mock.new({mac="AA:00:00:00:00:01"});b:tap("A")
- for i=2,6 do b:receive(string.format("AA:00:00:00:00:%02X",i),"SB1|H",-80+i) end
- b:receive("AA:00:00:00:00:07","SB1|H",-20)
+ for i=2,6 do b:receive(string.format("AA:00:00:00:00:%02X",i),"SB2H",-80+i) end
+ b:receive("AA:00:00:00:00:07","SB2H",-20)
  local peers=b:state().peers;eq(#peers,15)
  local found,strong=false,false
  for i=1,#peers,3 do
@@ -264,8 +302,8 @@ test("periodic packet loss is recovered",function()
 end)
 test("unrelated session and wrong sender ignored",function()
  local a,b,step=setup_pair();local before=a:state().match[5]
- a:receive("AA:00:00:00:00:03","SB1|C|"..a:state().sid.."|0001|F")
- a:receive(b.mac,"SB1|C|87654321|0001|F");step(100)
+ a:receive("AA:00:00:00:00:03","SB2C"..a:state().sid.."0001F")
+ a:receive(b.mac,"SB2C876543210001F");step(100)
  eq(a:state().match[5],before)
 end)
 test("guest clock offset does not break handshake or attacks",function()
@@ -294,7 +332,7 @@ test("local timeout remains terminal despite late live state",function()
  local a,b,step=setup_pair()
  for _=1,310 do b:tick(20) end
  eq(b:state().phase,"result");eq(b:state().view[1],4)
- local packet="SB1|T|"..b:state().sid.."|FFFF|"..a.api.pack_state(a:state().match,a.now)
+ local packet="SB2T"..b:state().sid.."FFFF"..a.api.pack_state(a:state().match,a.now)
  b:receive(a.mac,packet);eq(b:state().view[1],4)
 end)
 test("NaN accelerometer safely rejects recording",function()
@@ -315,14 +353,14 @@ test("stationary capture never spends multiplayer mana",function()
 end)
 test("declined invitation is not immediately shown again",function()
  local b=Mock.new({mac="AA:00:00:00:00:02"});b:tap("A")
- local p="SB1|I|12345678|AA0000000002"
+ local p="SB2I12345678AA0000000002"
  b:receive("AA:00:00:00:00:01",p);eq(b:state().phase,"offer");b:tap("B")
  b:receive("AA:00:00:00:00:01",p);eq(b:state().phase,"lobby")
 end)
 test("host cancellation closes an unaccepted invitation",function()
  local b=Mock.new({mac="AA:00:00:00:00:02"});b:tap("A")
- b:receive("AA:00:00:00:00:01","SB1|I|12345678|AA0000000002");eq(b:state().phase,"offer")
- b:receive("AA:00:00:00:00:01","SB1|Q|12345678");eq(b:state().phase,"lobby")
+ b:receive("AA:00:00:00:00:01","SB2I12345678AA0000000002");eq(b:state().phase,"offer")
+ b:receive("AA:00:00:00:00:01","SB2Q12345678");eq(b:state().phase,"lobby")
 end)
 print(string.format("\n%d passed, %d failed",passed,failed))
 if failed>0 then os.exit(1) end

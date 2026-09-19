@@ -46,25 +46,26 @@ class MemoryArchitectureTests(unittest.TestCase):
         self.assertNotIn('require("ui")', app)
         self.assertIn("SPELLBOUND_STATE=S", app)
         self.assertIn("badge.ui.label", app)
-        self.assertEqual(len(RUNTIME_FILES), 10)
-        for removed in ("core.lua", "ui.lua", "net_buttons.lua", "effects.lua"):
+        self.assertEqual(len(RUNTIME_FILES), 11)
+        for removed in ("core.lua", "ui.lua", "net_buttons.lua", "effects.lua",
+                        "engine.lua", "codec.lua"):
             self.assertNotIn(removed, RUNTIME_FILES)
             self.assertFalse((ROOT / "dist" / "app" / removed).exists())
 
-    def test_teach_adds_four_and_duel_defers_engine_until_match(self):
+    def test_teach_adds_four_and_duel_loads_largest_chunks_first(self):
         app = (ROOT / "src" / "app.lua").read_text()
         teach = ["gesture_dtw", "gesture_sig", "casting", "training"]
-        duel = ["network", "net_rx", "net_tick"]
+        duel = ["network", "net_rx", "net_tick", "net_ui"]
         for name in teach + duel:
             self.assertEqual(app.count(f'require("{name}")'), 1)
-        self.assertEqual(app.count('require("engine")'), 1)
+        self.assertEqual(app.count('require("apply")'), 2)
         self.assertIn("function S.ensure_engine()", app)
-        network = (ROOT / "src" / "network.lua").read_text()
+        ui = (ROOT / "src" / "net_ui.lua").read_text()
         receive = (ROOT / "src" / "net_rx.lua").read_text()
-        self.assertEqual(network.count("if S.ensure_engine then S.ensure_engine() end"), 2)
+        self.assertEqual(ui.count("if S.ensure_engine then S.ensure_engine() end"), 1)
         self.assertNotIn("ensure_engine", receive)
         self.assertLess(app.index('require("gesture_dtw")'), app.index('require("gesture_sig")'))
-        self.assertLess(app.index('require("network")'), app.index('require("engine")'))
+        self.assertLess(app.index('require("net_rx")'), app.index('require("network")'))
 
     def test_bluetooth_is_reserved_before_app_compilation(self):
         main = (ROOT / "src" / "main.lua").read_text()
@@ -83,11 +84,12 @@ class MemoryArchitectureTests(unittest.TestCase):
 
     def test_flat_match_state_and_lazy_models(self):
         resident = (ROOT / "src" / "app.lua").read_text()
-        engine = (ROOT / "src" / "engine.lua").read_text()
+        engine = "\n".join((ROOT / "src" / name).read_text()
+                           for name in ("net_rx.lua", "net_tick.lua", "apply.lua"))
         training = (ROOT / "src" / "training.lua").read_text()
         self.assertNotIn("models={{},{},{}}", resident)
         self.assertIn("S.models=S.models or", training)
-        self.assertIn("return {0,100,100,75,75", engine)
+        self.assertIn("S.match={0,100,100,75,75", engine)
         for nested in ("hp={", "mana={", "shield={", "incoming={", "cd={{"):
             self.assertNotIn(nested, engine)
 
@@ -122,7 +124,7 @@ class MemoryArchitectureTests(unittest.TestCase):
     def test_lazy_modules_reject_mixed_generated_versions(self):
         for name in set(RUNTIME_FILES) - {"main.lua", "app.lua"}:
             output = (ROOT / "dist" / "app" / name).read_text()
-            self.assertIn("Spellbound file versions do not match", output, name)
+            self.assertIn("Spellbound files mismatch", output, name)
 
     def test_share_bundle_contains_license_notice(self):
         notice = (ROOT / "dist" / "app" / LICENSE_FILE).read_text()

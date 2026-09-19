@@ -1,50 +1,39 @@
-if SPELLBOUND_STATE[4]~=4 then error("Spellbound file versions do not match; reinstall every app file") end
+if SPELLBOUND_STATE[4]~=5 then error("Spellbound files mismatch; reinstall all") end
 local S=SPELLBOUND_STATE
-S[34]=S[34] or {}
-S[21]=function(sig)
-if S[49]==2 and S[68] then
-local spell=S[68][1]
-if not S[68][2] then
-S[68][2]=sig;S[31]("Now test with a NEW repetition",3);return
+S[33]=S[33] or {}
+S[20]=function(sig)
+if S[45]==2 and S[62] then
+local spell=S[62][1]
+if not S[62][2] then
+S[62][2]=sig;S[30]("Now: fresh test",3);return
 end
-local old=S[34][spell];S[34][spell]=S[68][2]
-local id,why=S[53](sig,S[34])
-if id~=spell then
-S[34][spell]=old
-if id then S[31]("Looks like "..S[63][id].." - make it distinct",4)
-else S[31](why or "Test failed - repeat",4) end
-return
+if S[14](sig,S[62][2])>0.48 then S[30]("Test again",4);return end
+S[33][spell]=S[62][2]
+S[30](S[59][spell].." learned",3,4000)
+S[62]=nil;S[45]=1;return
 end
-S[31](S[63][id].." learned for this session",3,4000)
-S[68]=nil;S[49]=1;return
+local id,why=S[49](sig,S[33])
+if id and S[60] then S[60](id) else S[30](why or "Duel unavailable",4) end
 end
-local id,why=S[53](sig,S[34])
-if id and S[65] then S[65](id) else S[31](why or "Duel unavailable",4) end
+S[61]=function(button,kind,now)
+if not now then
+local shown=kind;local out=""
+if S[45]==1 then
+for n=1,3 do out=out..string.format("%s%s %s\n",n==S[54] and "> " or "  ",S[59][n],S[33][n] and "[ok]" or "[ ]") end
+return out.."\n"..(shown~="" and shown or "1 example + test").."\nA open / B back"
 end
-S[67]=function(now,shown)
-local out=""
-if S[49]==1 then
-for n=1,3 do
-out=out..(n==S[58] and "> " or "  ")..S[63][n]..
-(S[34][n] and " [learned]" or " [untrained]").."\n"
+local tr=S[62]
+return S[59][tr[1]].."\n"..(not tr[2] and "Example" or "Fresh test")..
+"\n\nHold A, move, release\n"..(shown~="" and shown or "Ready").."\nB cancels"
 end
-return out.."\n"..(shown~="" and shown or "1 example + fresh test").."\nA open / B back"
-end
-local tr=S[68]
-return S[63][tr[1]].."\n"..
-(not tr[2] and "Training example" or "Fresh test repetition")..
-"\n\nHold A, move, release.\n"..(shown~="" and shown or "Idle before/after is trimmed").."\nB cancels"
-end
-S[66]=function(button,kind,now)
-local B,K=badge.input.BUTTON,badge.input.KIND
-if kind~=K.PRESSED then return end
+local B=badge.input.BUTTON
 if button==B.B then
 S[5]=nil
-if S[49]==2 then S[68]=nil;S[49]=1
-else S[55]() end
-elseif S[49]==1 then
-if button==B.UP then S[58]=(S[58]+1)%3+1
-elseif button==B.DOWN then S[58]=S[58]%3+1
-elseif button==B.A then S[68]={S[58]};S[49]=2 end
-elseif S[49]==2 and button==B.A and not S[5] then S[7](now) end
+if S[45]==2 then S[62]=nil;S[45]=1
+else S[51]() end
+elseif S[45]==1 then
+if button==B.UP then S[54]=(S[54]+1)%3+1
+elseif button==B.DOWN then S[54]=S[54]%3+1
+elseif button==B.A then S[62]={S[54]};S[45]=2 end
+elseif S[45]==2 and button==B.A and not S[5] then S[6](now,0) end
 end

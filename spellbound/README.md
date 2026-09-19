@@ -6,13 +6,13 @@ Hold A, perform a movement, and release to cast Fireball, Shield, or Recharge. T
 
 **Implementation status:** complete source and desktop tests are included. The physical competition build is the lazy modular package in `dist/app/`, with a sub-1 KiB production `main.lua` bootstrap and feature modules loaded only when needed. Hardware logs have exercised startup, but the app still needs end-to-end physical validation for memory/timing, rendering, radio reliability, and real gesture accuracy.
 
-## Design pass 0.4.1
+## Design pass 0.5.0
 
-The badge-native pass adds clearer health/mana hierarchy, shield/pending-command feedback, physically mapped LED effects, radio-first Bluetooth startup, and a production-only memory pass that compacts phase/role state and reuses transient multiplayer fields without changing the controls or flow. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for changes, guide-derived constraints, and the remaining memory/hardware gates.
+The badge-native pass keeps the complete one-example Teach and duel flow while replacing delimiter packets, compacting gesture capture/DTW, and ordering lazy compilation around the largest chunks. The trained-match desktop allocator-cap delta is 37,857 bytes and the worst profiled stage is 37,963 bytes; physical badge validation remains required. Read [docs/DESIGN_PASS.md](docs/DESIGN_PASS.md) for the changes and limits.
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny and initializes Bluetooth before compiling `app.lua`, while the largest contiguous native allocation is still available. The startup UI then uses one native label and caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, Spellbound deletes the UI before compiling discovery, receive, and tick/render modules; the match engine waits until the user sends or accepts a challenge, keeping compilation out of the tighter radio callback. The badge's private `require()` cache cannot be cleared, so unused wrappers and production diagnostics have been removed rather than pretending to unload them.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny and initializes Bluetooth before compiling `app.lua`, while the largest contiguous native allocation is still available. The startup UI then uses one native label and caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, Spellbound deletes the UI and loads the fixed-packet receiver, duel UI, rules, tick, and coordinator largest-first. Match start performs no module compilation and radio receive never compiles code. The badge's private `require()` cache cannot be cleared, so unused wrappers and production diagnostics have been removed rather than pretending to unload them.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
@@ -50,7 +50,7 @@ Both players begin with 100 health and 75 mana. Mana never exceeds 100.
 | Shield | 25 | 2.4 s | Blocks one attack landing during its 2.2 s window |
 | Recharge | +35 | 3.0 s | Restores mana, capped at 100 |
 
-These are editable design defaults in `src/engine.lua`, not tournament-tested balance. Attacks and shields resolve by host receipt/processing time. Guest countdowns approximate the host's timers; this implementation does not promise clock-perfect effects or latency-neutral competitive play.
+These are editable design defaults in `src/apply.lua` and `src/net_tick.lua`, not tournament-tested balance. Attacks and shields resolve by host receipt/processing time. Guest countdowns approximate the host's timers; this implementation does not promise clock-perfect effects or latency-neutral competitive play.
 
 ## First demo
 
@@ -64,13 +64,14 @@ src/main.lua          Tiny lifecycle bootstrap
 src/app.lua           Only resident coordinator + one-label home UI
 src/network.lua       Radio coordinator + multiplayer buttons
 src/net_rx.lua        Packet receive/handshake state machine
-src/net_tick.lua      Discovery/retry/match tick + duel renderer
+src/net_tick.lua      Discovery/retry tick + delayed attack resolution
+src/net_ui.lua        Duel renderer, buttons, and LED effects
 src/casting.lua       Motion capture coordinator
 src/training.lua      Teaching, lazy models + Teach renderer
 src/gesture_sig.lua   Segmentation + normalized derivative signatures
-src/gesture_dtw.lua   Banded DTW + classification with lazy 14-cell workspace
-src/engine.lua        Flat host game state + rules + duel LED effects
-dist/app/             12-file Share package (10 runtime Lua + license.lua + manifest)
+src/gesture_dtw.lua   Banded DTW + classification with one reusable band row
+src/apply.lua         Deferred authoritative spell rules
+dist/app/             13-file Share package (11 runtime Lua + license.lua + manifest)
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)

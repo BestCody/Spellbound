@@ -2,7 +2,7 @@
 local APP={}
 SPELLBOUND_APP=APP
 local S={}
-S.build_id=4
+S.build_id=5
 S.MAX_CAPTURE=4500
 S.spells,S.codes={"Fireball","Shield","Recharge"},"FSR"
 S.phase,S.selected,S.me,S.radio_ok="home",1,"",false
@@ -65,7 +65,7 @@ end
 
 local function gc8() for _=1,8 do badge.sys.gc_step() end end
 local function loaded(v)
-  if not v then error("Spellbound file versions do not match; reinstall every app file") end
+  if not v then error("Spellbound files mismatch; reinstall all") end
 end
 local function drop()
   S.destroy_ui();gc8()
@@ -74,29 +74,31 @@ local function rebuild()
   gc8();S.create_ui(root);S.render(S.clock())
 end
 local function load_teach()
-  if S.teach_button then return end
+  if S.teach_action then return end
   require("gesture_dtw");gc8()
   require("gesture_sig");gc8()
   require("casting");gc8()
   require("training");gc8()
-  loaded(S.recognize and S.signature and S.capture_start and S.teach_button)
+  loaded(S.recognize and S.signature and S.capture_event and S.teach_action)
 end
 local function load_duel()
   if S.network_tick then return end
-  require("network");gc8()
   require("net_rx");gc8()
+  require("net_ui");gc8()
+  require("apply");gc8()
   require("net_tick");gc8()
-  loaded(S.net_button and S.receive and S.network_tick)
+  require("network");gc8()
+  loaded(S.apply and S.net_action and S.receive and S.network_tick and S.leds)
 end
 function S.ensure_engine()
-  if not S.new_match then require("engine");gc8() end
-  loaded(S.new_match and S.apply and S.unpack_state)
+  if not S.apply then gc8();require("apply");gc8() end
+  loaded(S.advance and S.apply and S.codec)
   S.ensure_engine=nil
 end
 local function teach()
-  if not S.teach_button then drop();load_teach();load_teach=nil end
+  if not S.teach_action then drop();load_teach();load_teach=nil end
   S.phase,S.selected="train_select",1
-  S.mode_button,S.mode_render=S.teach_button,S.teach_render
+  S.mode_button,S.mode_render=S.teach_action,S.teach_action
   if not label then rebuild() else S.render(S.clock()) end
 end
 local function duel()
@@ -104,9 +106,9 @@ local function duel()
     if not S.network_tick then drop();load_duel();load_duel=nil end
     badge.radio.on_recv(S.receive)
     S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
-    S.mode_button,S.mode_render=S.net_button,S.net_render
+    S.mode_button,S.mode_render=S.net_action,S.net_action
   else
-    S.phase="home";S.message("Radio unavailable; HOME then reopen",4)
+    S.phase="home";S.message("Radio unavailable",4)
   end
   if not label then rebuild() else S.render(S.clock()) end
 end
@@ -119,7 +121,7 @@ end
 local function tick()
   local now=S.clock()
   if S.network_tick then S.network_tick(now) end
-  if S.capture and S.capture_tick then S.capture_tick(now) end
+  if S.capture and S.capture_event then S.capture_event(now,2) end
   if now>=S.next_ui then S.render(now);S.next_ui=now+100 end
   if S.leds and now>=S.next_led then S.leds(now);S.next_led=now+70 end
   if now>=S.next_gc then badge.sys.gc_step();S.next_gc=now+250 end
@@ -127,7 +129,7 @@ end
 local function button(b,k)
   local B,K=badge.input.BUTTON,badge.input.KIND;local now=S.clock()
   if b==B.A and k==K.RELEASED then
-    if S.capture and S.capture_finish then S.capture_finish(now,false) end
+    if S.capture and S.capture_event then S.capture_event(now,1) end
     return
   end
   if k~=K.PRESSED then return end
@@ -147,8 +149,12 @@ local function test_api()
   load_teach();load_duel()
   if S.ensure_engine then S.ensure_engine() end
   return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
-    new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
-    split_packet=S.split_packet,receive=S.receive,submit=S.submit,
+    new_match=function(n) S.seq=0;return {0,100,100,75,75,0,0,0,0,0,0,0,0,0,0,0} end,
+    apply=S.apply,advance=S.advance,
+    pack_state=function(g,n) return S.codec(0,g,n) end,
+    unpack_state=function(s,n,g) return S.codec(1,s,n,g) end,
+    sequence=function() return S.seq end,
+    receive=S.receive,submit=S.submit,
     state=function() return {phase=S.phase,role=S.role,match=S.match,view=S.view,pending=S.pending,
       models=S.models,training=S.training,capture=S.capture,
       peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}

@@ -10,10 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_FILES = (
     "main.lua", "app.lua",
     "gesture_dtw.lua", "gesture_sig.lua", "casting.lua", "training.lua",
-    "network.lua", "net_rx.lua", "net_tick.lua", "engine.lua",
+    "network.lua", "net_rx.lua", "net_tick.lua", "net_ui.lua", "apply.lua",
 )
 LAZY_FILES = set(RUNTIME_FILES) - {"main.lua", "app.lua"}
-BUILD_ABI = 4
+BUILD_ABI = 5
 LICENSE_FILE = "license.lua"
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
@@ -32,10 +32,9 @@ RUNTIME_ENUMS = {
     "lobby": 3,
     "offer": 4,
     "waiting": 5,
-    "starting": 6,
-    "joining": 7,
-    "duel": 8,
-    "result": 9,
+    "joining": 6,
+    "duel": 7,
+    "result": 8,
     "host": 1,
     "guest": 2,
 }
@@ -113,7 +112,7 @@ def build(check: bool = False) -> None:
         if name in LAZY_FILES:
             build_slot = STATE_FIELDS["build_id"]
             code = (f'if SPELLBOUND_STATE[{build_slot}]~={BUILD_ABI} then '
-                    'error("Spellbound file versions do not match; reinstall every app file") end\n' + code)
+                    'error("Spellbound files mismatch; reinstall all") end\n' + code)
         code.encode("ascii")
         size = len(code.encode())
         if name == "main.lua" and size > 2 * 1024:

@@ -65,10 +65,9 @@ def advance(badge, motion_set, stop: str) -> None:
     if stop == "both":
         return
     if stop == "match":
-        badge.receive(badge, "AA:00:00:00:00:02", "SB1|H")
+        badge.receive(badge, "AA:00:00:00:00:02", "SB2H")
         badge.tap(badge, "A")
-        badge.receive(badge, "AA:00:00:00:00:02", "SB1|J|12345678")
-        badge.receive(badge, "AA:00:00:00:00:02", "SB1|K|12345678")
+        badge.receive(badge, "AA:00:00:00:00:02", "SB2J12345678")
         return
     badge.tap(badge, "B")
     badge.tap(badge, "DOWN")
@@ -119,8 +118,9 @@ def minimum_cap(stage: str) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--max-match-delta", type=int,
-                        help="fail when the desktop allocator cap increase from Home exceeds this many bytes")
+    parser.add_argument("--max-delta", type=int,
+                        help="fail when any scenario's allocator cap increase from Home exceeds this many bytes")
+    parser.add_argument("--max-match-delta", type=int, help=argparse.SUPPRESS)
     args = parser.parse_args()
     current = snapshots()
     caps = {stage: minimum_cap(stage) for stage in STAGES}
@@ -136,11 +136,15 @@ def main() -> None:
         },
     }
     print(json.dumps(report, indent=2))
-    delta = report["cap_increase_from_home_bytes"]["match"]
-    if args.max_match_delta is not None and delta > args.max_match_delta:
+    deltas = report["cap_increase_from_home_bytes"]
+    if args.max_delta is not None:
+        stage = max(STAGES, key=deltas.get)
+        delta, limit = deltas[stage], args.max_delta
+    else:
+        stage, delta, limit = "match", deltas["match"], args.max_match_delta
+    if limit is not None and delta > limit:
         raise SystemExit(
-            f"trained-match allocator delta {delta:,} exceeds regression budget "
-            f"{args.max_match_delta:,}"
+            f"{stage} allocator delta {delta:,} exceeds regression budget {limit:,}"
         )
 
 

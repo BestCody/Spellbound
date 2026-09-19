@@ -1,57 +1,50 @@
-# Badge-native design pass — 0.4.1
+# Badge-native design pass — 0.5.0
 
-This pass applies the supplied **Agent instructions: create a Hacker Badge app in the IDE** to the existing Spellbound game. The guide is the basis for hardware/API constraints; the palette, layout, light patterns, and copy are Spellbound design choices, not requirements quoted from the guide.
+This release is the no-restart, sub-40-KB desktop-regression pass. Controls, spell rules, custom teaching, screen flow, and LED cues remain intact.
 
 ## Display and interaction
 
-The app still uses only documented widgets at integer positions on a 320x240 screen. After successive physical memory passes reduced the home screen from 18 to 9 to 5 to 3 widgets, the deep-memory pass now uses a **single native label** as the entire resident UI surface. There are no external images, canvas calls, touch handlers, or audio features.
+Spellbound uses one native label on the documented 320x240 integer-coordinate UI. Exact health and mana stay visible. Incoming attacks take priority over recording copy; a protected attack shows **SHIELD READY TO BLOCK**, resolution without damage shows **BLOCKED**, and an unacknowledged guest action shows **CAST QUEUED - WAIT**.
 
-The duel keeps **YOU HP / FOE HP** and **MANA** visible as compact text; its input state machine and LED effects now live in duel-only modules rather than the resident startup UI/coordinator. The remaining HP bars were removed because physical measurements showed resident Lua/module memory, not native widget objects, was now the limiting resource; incoming attacks remain explicit in text and LED effects.
+The LED strip remains dark when idle. Fireball uses a moving orange light, Shield/blocked uses blue, Recharge green, damage red, and victory a gold chase. Frames clear and latch once, with no catch-up loop. HOME clears stale notes and LEDs.
 
-Header, status, action help, and footer are composed into one multi-line label. A spell result or error still preserves the essential physical-button instruction without allocating separate native labels for each region.
+## Startup and Bluetooth
 
-Incoming attacks take display priority over recording. A shield covering the known landing time shows **SHIELD READY TO BLOCK**, rather than asking the player to cast another shield. An observed attack resolution without damage produces **BLOCKED** feedback. This feedback follows received host state; it is not a new exact-clock or authenticated event protocol.
+The tiny lifecycle bootstrap reserves Bluetooth before compiling `app.lua`. Hardware logs showed that enabling it later could leave enough total heap but too small a contiguous block for HCI/NimBLE. A failed initialization is not retried in the same foreground session; Teach remains usable and reopening the app provides a clean retry.
 
-A guest command awaiting acknowledgement shows **CAST QUEUED - WAIT**. Button-mode practice says **test cast**, not **recognized**. The latter is reserved for a movement accepted by the recognizer. Invitation copy says **queued**, not delivered. The short address shown is a radio code, not the badge's provisioned identity or a security credential.
+Production contains no diagnostic logging or diagnostic score tables. Physical measurements use the firmware's external console statistics.
 
-## LEDs and brightness
+## Memory architecture
 
-The supplied guide's front-view mapping is used: left side top-to-bottom is **1, 6, 5**; right is **2, 3, 4**. During an otherwise idle duel, the left side represents local health and the right side opponent health in three coarse steps. Always use the screen for exact health values.
+Startup caches only `app.lua`. First Teach entry temporarily removes the label and installs four side-effect modules in order: `gesture_dtw`, `gesture_sig`, `casting`, and `training`. First Duel entry installs `net_rx`, `net_ui`, `apply`, `net_tick`, and `network` largest-first while the label is removed. Match start and radio receive perform no module compilation.
 
-| State | Light behavior |
-| --- | --- |
-| Home / practice / lobby / ordinary recording | Off. Essential state remains on screen. |
-| Accepted Fireball / unprotected incoming attack | One orange moving LED. |
-| Shield or observed block | Solid cyan-blue. |
-| Recharge | Solid green. |
-| Damage | Solid red. |
-| Win | Gold perimeter chase. |
-| Other result | Off. |
+The build maps private state names, phases, and roles to numeric values. Models are direct 48-byte strings. Match state is a flat 16-cell authoritative host table and an 11-cell guest view. The state codec is folded into the fixed packet receiver; delayed attack resolution is folded into the already-loaded tick module. One-use loader closures are released and incremental collection runs between module loads.
 
+The raw gesture buffer stores three acceleration bytes per fixed 20 ms sample. Signatures remain 16 XYZ nodes (48 bytes). Recognition retains the ±3-node DTW band, 0.48 threshold, 0.88 ambiguity margin, one teaching example, and one fresh validation repetition. DTW now uses one in-place band row; automated differential coverage proves the result matches the conventional two-row recurrence.
 
+## Network rewrite
 
-Frames are timestamp-driven, scheduled no faster than every 50 ms, overwrite all six positions, and latch with one `show()`. A delayed callback skips frames rather than replaying a catch-up loop. These are visual game cues, not a promise of exact light output or timing on a real badge. HOME clears and shows the strip. Returning to the menu clears stale result messages/effects.
+SB2 uses fixed-position packets from 4 to 30 bytes, with exact-length validation and no delimiter patterns. The guest retries `JOIN`; the host's first state packet starts the match and acknowledges it, eliminating the separate start/ack phases. Invitations, deterministic simultaneous-invite resolution, five strongest peers, cancellation, bounded retries, duplicate suppression, revision ordering, loss detection, surrender, and rematches remain.
 
-## Runtime and memory
+SB2 is incompatible with earlier builds, so all files must be replaced atomically on both badges.
 
-Bluetooth now starts in the tiny lifecycle bootstrap, before `app.lua` is compiled. Fresh hardware logs showed that delaying startup until **Find a duel** recovered substantial heap but still left only a 29,696-byte largest block; the controller started, then HCI/NimBLE initialization failed. Reserving Bluetooth before the resident coordinator and UI are compiled gives the native HCI buffers the largest available contiguous block. The cost is that Home and Teach keep Bluetooth active during the foreground session. A failed initialization is not retried in that session because failed firmware initialization can fragment heap further; non-radio modes remain available and the app asks for a normal exit/reopen.
+## Measured desktop regression
 
-The competition build performs no diagnostic logging or diagnostic metadata construction. Firmware, memory, and gesture-score format strings were removed from the runtime; physical memory acceptance uses the firmware's external console statistics.
+The generated v0.5.0 package is 21,556 bytes across 13 transfer files. In the 64-bit Lua 5.4 allocator-cap probe:
 
-The production `main.lua` remains only a lifecycle bootstrap and performs the radio reservation before requiring the coordinator. Startup then caches only `app.lua`; gesture models and multiplayer state are deferred entirely. On first Teach/Find-a-duel entry, Spellbound deletes its one-label UI before feature loading. Teach installs four side-effect modules (`gesture_dtw`, `gesture_sig`, `casting`, `training`). Opening Duel installs only `network`, `net_rx`, and `net_tick`; `engine` waits until the user sends or accepts a challenge, so compilation occurs in the button callback rather than `on_recv`. The one-use loader closures are released after installation and eight incremental GC steps run between modules.
+| Scenario | Extra allocator cap from Home |
+|---|---:|
+| First Teach | 16,709 bytes |
+| Direct Duel | 20,219 bytes |
+| Trained active match | **37,857 bytes** |
+| Maximum capture after both stacks | **37,963 bytes** |
 
-The generated build maps internal state fields, phase names, and roles to numeric values. Each learned model is now the 48-byte signature directly instead of a signature inside a one-element table. Network callbacks cache the current phase, post-pair discovery entries are released, numeric effect identifiers replace retained effect strings, and mutually exclusive timers/revision slots share storage. The unused eighteenth match-state cell was removed. These are internal representation changes: Teach, discovery, invitation, simultaneous-invite resolution, casting, damage, surrender, and rematches retain their existing flow. Raw samples still use five bytes, and DTW retains its two lazily allocated 7-cell rows. The badge sandbox's private `require()` cache still cannot be evicted, so minimizing retained function prototypes and cached modules remains the primary strategy.
+The active match retains 64,738 bytes above the desktop harness; that separate steady-state figure includes 64-bit Lua and mock allocations and is not the release gate. CI enforces every scenario's allocator-cap delta at no more than 38,000 bytes.
 
-### Important memory limitation
+This is a regression measurement, not proof of ESP32 use. Lua word size, native UI/radio services, fragmentation, and firmware differ. Physical acceptance still requires every observed badge memory value to stay at or below 40 KiB through all-three-spell training, pairing, casting, maximum capture, and repeated matches.
 
-The 64-bit desktop scenario regression improved without a gameplay restart. Direct Duel now needs 19,767 bytes more allocator cap than Home, down from 21,211. The fully trained active match needs 50,891 bytes more, down from 53,104, and retains 74,020 bytes above the desktop harness. The probe includes a Lua badge mock and does not reproduce 32-bit ESP32 allocation sizes, native services, or fragmentation. This is not evidence that the complete app stays below the proposed 40 KiB target on the physical badge.
+## Packaging
 
-Do not demonstrate on the strength of the desktop memory number alone. Upload the app and measure current and peak Lua usage on Home, after training all three spells, after opening multiplayer, during a match, after a maximum-length recording, and after repeated rematches. Every observed value must be at or below 40 KiB; reducing complexity further may be necessary after those measurements.
+The package contains exactly 13 files: `manifest.cfg`, 11 runtime Lua files, and comment-only `license.lua`. Every production chunk is at most 4 KiB except the resident `app.lua`, whose ceiling is 6 KiB; `main.lua` stays below 2 KiB. Total runtime package budget is 25 KiB, below Share's documented 48 KiB and 16-file limits.
 
-## Packaging and validation
-
-The slug remains `spellbound`. The physical package contains 12 files in `dist/app/`: `manifest.cfg`, 10 runtime Lua modules, and comment-only `license.lua`. Using a `.lua` notice is deliberate: the Badge IDE pushes support modules but omitted the earlier text notice from an observed transfer. The build enforces a sub-2 KiB production `main.lua`, a sub-6 KiB resident `app.lua`, a 4 KiB ceiling for each lazy production chunk, a 25 KiB low-memory package budget, exact membership, the documented 16-file Share cap, and the 48 KiB total Share cap. Production Lua removes blank lines, full-line comments, and indentation, and maps private shared-state fields to stable numeric slots. Version 0.4.1 uses ABI marker 4 so partial old/new module sets fail with an explicit reinstall message.
-
-The lazy modular installation is the canonical competition build. Physical testing showed both the flattened importer and the earlier ~22 KiB `main.lua` layout could exhaust Lua allocation headroom while loading another chunk. The Badge IDE Files panel must therefore contain every runtime module alongside the tiny `main.lua`; Import app is not used to add those modules.
-
-Run the core Lua tests, the design regressions in `tests/design_pass.lua`, the manifest-contract tests, the modular production/checker smoke tests, and `tools/build.py --check`. The build now rejects duplicate manifest keys, invalid heap settings, and conflicting HOME options before creating an installer. Startup logs have been captured on hardware, but the new radio-first order and complete two-badge flow still require physical validation. Inspect actual text wrapping; LED effects use a fixed competition brightness.
+Version 0.5.0 uses ABI marker 5. Mixed generated versions stop with an explicit reinstall message. The canonical transfer is Badge Share or an archive of the complete `dist/app/` directory, never the IDE's incomplete single-app export.

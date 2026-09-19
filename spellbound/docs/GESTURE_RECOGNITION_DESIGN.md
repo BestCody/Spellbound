@@ -31,7 +31,7 @@ The badge exposes cached 3-axis acceleration at 50 Hz and no continuous gyro str
        +-- keep pauses between first and last real movement
        |
        v
-    3-sample smoothing
+    2-sample smoothing
        |
        v
     first derivative of acceleration
@@ -91,9 +91,8 @@ These are physical-test tuning points, not universal sensor truths.
 
 Raw samples are transient and are not learned templates.
 
-Each sample is 5 bytes:
+Each sample is 3 bytes; fixed 20 ms sample position supplies elapsed time:
 
-    uint16 elapsed_ms
     uint8  x / 64 mg, biased by 128
     uint8  y / 64 mg, biased by 128
     uint8  z / 64 mg, biased by 128
@@ -106,7 +105,7 @@ The input sanity guard accepts finite readings up to 32 g rather than rejecting 
 
 The first six readings are averaged for a stable initial reference instead of using one button-press sample.
 
-Feature extraction uses derivatives of a three-sample moving average:
+Feature extraction uses derivatives of a two-sample moving average:
 
     d[t] = smooth(accel[t]) - smooth(accel[t-1])
 
@@ -139,7 +138,7 @@ Template distance is no longer point-for-point Euclidean distance.
 
 A dynamic-time-warping path is allowed within +/-3 nodes around the diagonal. This permits local speed changes and short hesitations while preventing arbitrary sequence rearrangement.
 
-The implementation reuses two 7-entry band rows rather than allocating a full 16x16 matrix for every comparison.
+The implementation performs the mathematically equivalent recurrence in one reusable band row rather than allocating a full 16x16 matrix. A differential test compares it with the conventional two-row recurrence.
 
 Class score is the DTW distance to the spell's single stored example.
 
@@ -154,7 +153,7 @@ The single example keeps teaching quick and reduces retained template/table memo
 
 ### Fresh validation
 
-The second repetition is classified against the new example for this spell, all previously learned spell classes, and the fixed threshold.
+The second repetition must be within the fixed 0.48 threshold of the new example for this spell. Other learned classes remain unchanged; the relative runner-up rule is applied when casting.
 
 The spell is committed only when that held-out repetition is accepted.
 
@@ -184,7 +183,7 @@ Persistent learned payload:
 
 plus Lua table/string overhead.
 
-DTW working state is two short rows and is reused across comparisons. Raw capture is transient; each sample uses a two-byte timestamp and three quantized axis bytes, so a 50 Hz, 4.5 s hold is roughly 1.1 KiB before Lua string overhead.
+DTW working state is one short row and is reused across comparisons. Raw capture is transient; three axis bytes per 50 Hz sample make a 4.5 s hold at most 681 raw bytes before temporary Lua string overhead.
 
 ## Automated validation
 
