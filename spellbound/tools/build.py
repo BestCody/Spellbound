@@ -9,7 +9,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_FILES = ("main.lua", "gesture.lua", "engine.lua", "model_codec.lua")
-MODULES = (("gesture", "gesture.lua", ("raw_sample", "signature", "distance", "recognize")),\n           ("engine", "engine.lua", ("new_match", "apply", "advance", "pack_state", "unpack_state")),\n           ("codec", "model_codec.lua", ("encode_models", "decode_models")))
+MODULES = (("gesture", "gesture.lua", ("raw_sample", "signature", "distance", "recognize")),
+           ("engine", "engine.lua", ("new_match", "apply", "advance", "pack_state", "unpack_state")),
+           ("codec", "model_codec.lua", ("encode_models", "decode_models")))
 
 
 def validate_manifest(text: str) -> None:
@@ -70,7 +72,8 @@ local function save_models"""
     if count != 1:
         raise ValueError("Could not replace modular load_components()")
 
-    embedded = "".join(loader(name, sources[file], exports)\n                       for name, file, exports in MODULES)
+    embedded = "".join(loader(name, sources[file], exports)
+                       for name, file, exports in MODULES)
     body = embedded + "\n" + main
 
     # Generated-only cleanup lowers parser/compile pressure while readable src/ stays intact.
