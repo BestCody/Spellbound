@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "package_mode": "modular-lazy",
   "runtime_files": 13,
-  "runtime_bytes": 34962,
+  "runtime_bytes": 34961,
   "standalone_import": false,
   "sha256": {
     "app/main.lua": "ff5459bf2ae96071b383c3da4b6535d54678a034dd94190eb2de983175053e25",
-    "app/app.lua": "84bd8f6b2be038bc7b612b49b04b51e0eb6dbea783a9cfd2bf5e12c74045f79c",
+    "app/app.lua": "e0cd9af36aee514f0f67edfe04c57dd4dc1db97163e7d6ca305589b4fdabffed",
     "app/core.lua": "d541ddb2deb362ffb816aac3b463be3b59086065c3cc5fff6f1380e05c071880",
     "app/ui.lua": "396b46f835d84b69214883d129c35dd82e6fba619e8edcd3c397004c507feacf",
     "app/network.lua": "7242dcc8e23f5ac8727e701819068497d50ba5d61d80dc2bc9b0c66a9df8d9db",
