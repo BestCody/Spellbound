@@ -1,5 +1,5 @@
 -- Spellbound original source, MIT license.
-local floor,min,max,abs=math.floor,math.min,math.max,math.abs
+local floor,min,max=math.floor,math.min,math.max
 local SB={nodes=16,max_capture=2400}
 local function clamp(v,a,b) return min(b,max(a,v)) end
 local function round(v) return floor(v+0.5) end
@@ -51,43 +51,15 @@ local function nearest(sig, model)
   end
   return id,first,second
 end
--- Experimental defaults, deliberately conservative. Personal training avoids
--- assumptions about the badge's physical axis orientation.
-local function preset(sig)
-  local peak,tail,axis,range=0,0,1,0
-  for a=1,3 do
-    local lo,hi=0,0
-    for i=a,48,3 do local v=(sig:byte(i)-128)*0.05;lo=min(lo,v);hi=max(hi,v) end
-    if hi-lo>range then range,axis=hi-lo,a end
-  end
-  local flips,last=0,0
-  for k=0,15 do
-    local i=k*3+1
-    local x,y,z=(sig:byte(i)-128)*0.05,(sig:byte(i+1)-128)*0.05,(sig:byte(i+2)-128)*0.05
-    peak=max(peak,math.sqrt(x*x+y*y+z*z))
-    local v=(sig:byte(k*3+axis)-128)*0.05
-    local sign=v>0.28 and 1 or (v< -0.28 and -1 or 0)
-    if sign~=0 then if last~=0 and sign~=last then flips=flips+1 end;last=sign end
-  end
-  local e1,e2,e3=(sig:byte(46)-128)*0.05,(sig:byte(47)-128)*0.05,(sig:byte(48)-128)*0.05
-  local endpoint=math.sqrt(e1*e1+e2*e2+e3*e3)
-  for i=40,45 do tail=max(tail,abs(sig:byte(i)-sig:byte(46+(i-40)%3))*0.05) end
-  if peak>3.4 then return nil end
-  if flips>=3 and flips<=6 and range>0.85 and endpoint<0.65 then return 3 end
-  if endpoint>0.8 and endpoint<2.15 and tail<0.25 and flips<=1 then return 2 end
-  if flips==1 and range>1.2 and endpoint<0.50 then return 1 end
-end
 local function recognize(sig, model)
   model=model or {{},{},{}}
   local id,d,runner=nearest(sig,model)
-  if id and d<=0.42 then
+  if not id then return nil,"Teach this spell first",d end
+  if d<=0.42 then
     if runner-d<0.09 or d>runner*0.78 then return nil,"Ambiguous - try again",d end
     return id,"Learned gesture",d
   end
-  local p=preset(sig)
-  if p and #model[p]==0 then return p,"Preset (calibrate for accuracy)",d end
   return nil,"Fizzle - no clear match",d
 end
 
-
-return {raw_sample=raw_sample,signature=signature,distance=distance,recognize=recognize,preset=preset}
+return {raw_sample=raw_sample,signature=signature,distance=distance,recognize=recognize}
