@@ -211,7 +211,7 @@ local function recognize(sig,model,thresholds)
   if best_score>threshold then
     return nil,"Fizzle - outside learned range",best_score,diag
   end
-  if runner_score<99 and best_score>runner_score*AMBIG_RATIO then
+  if runner_score<99 and best_score>=runner_score*AMBIG_RATIO then
     return nil,"Ambiguous - try again",best_score,diag
   end
   return best,"Learned gesture",best_score,diag
