@@ -67,7 +67,7 @@ def build(check: bool = False) -> None:
     report = {
         "version": next((line.split("=", 1)[1] for line in manifest.splitlines()
                          if line.startswith("version=")), "unknown"),
-        "package_mode": "modular",
+        "package_mode": "modular-lazy",
         "runtime_files": len(RUNTIME_FILES) + 1,
         "runtime_bytes": runtime_total,
         "standalone_import": False,
