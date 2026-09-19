@@ -78,8 +78,8 @@ local function setup_pair(opts)
  return a,b,step
 end
 
-test("strict documented API boot + 9-widget UI",function()
- local b=Mock.new();eq(#b.widgets,9);eq(b:state().phase,"home");b:tick(100)
+test("strict documented API boot + 5-widget UI",function()
+ local b=Mock.new();eq(#b.widgets,5);eq(b:state().phase,"home");b:tick(100)
  for _,w in ipairs(b.widgets) do assert(w.x>=0 and w.y>=0 and w.x+w.w<=320 and w.y+w.h<=240) end
 end)
 test("exit clears LEDs and disables radio",function()

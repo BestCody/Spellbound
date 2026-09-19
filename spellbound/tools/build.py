@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua")
-LAZY_FILES = {"network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua"}
+RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua")
+LAZY_FILES = {"network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua"}
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
 
@@ -39,8 +39,17 @@ def validate_manifest(text: str) -> None:
             raise ValueError(f"Invalid {key} byte length")
 
 
-def production_main(text: str) -> str:
-    return text.split("-- TEST_EXPORTS_BEGIN", 1)[0].rstrip() + "\n"
+def production_source(name: str, text: str) -> str:
+    if name == "main.lua":
+        text = text.split("-- TEST_EXPORTS_BEGIN", 1)[0]
+    begin, end = "-- TEST_ONLY_BEGIN", "-- TEST_ONLY_END"
+    while begin in text:
+        before, rest = text.split(begin, 1)
+        if end not in rest:
+            raise ValueError(f"Unclosed {begin} in {name}")
+        _, after = rest.split(end, 1)
+        text = before + after
+    return text.rstrip() + "\n"
 
 
 def build(check: bool = False) -> None:
@@ -51,7 +60,7 @@ def build(check: bool = False) -> None:
 
     output: dict[Path, bytes] = {}
     for name in RUNTIME_FILES:
-        code = production_main(sources[name]) if name == "main.lua" else sources[name]
+        code = production_source(name, sources[name])
         code.encode("ascii")
         if len(code.encode()) > 64 * 1024:
             raise ValueError(f"{name} exceeds 64 KiB")

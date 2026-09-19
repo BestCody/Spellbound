@@ -12,7 +12,7 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The UI uses only nine native widgets. On the first entry to **Teach** or **Find a duel**, Spellbound temporarily deletes its UI tree, preloads the complete feature stack with GC between micro-modules, then rebuilds the nine-widget UI.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The UI uses only five native widgets. On first **Teach** entry, Spellbound deletes the UI tree and loads the recognizer in physical-memory order: signature processing first, then capture, DTW/classification, and training. The badge's private `require()` cache cannot be cleared, so unused wrapper modules have been removed rather than pretending to unload them.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
@@ -24,7 +24,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 - Button-delimited accelerometer capture; segmented, amplitude-normalized derivative templates; banded DTW; adaptive per-spell thresholds; and relative ambiguity rejection.
 - Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
-- Nine-widget low-memory UI; mana remains visible as text while HP keeps native bars.
+- Five-widget low-memory UI; HP and mana are both rendered as compact text to reduce resident Lua/UI cost.
 - Simplified six-LED spell/damage/victory effects.
 - Tests, reproducible builds, GitHub Actions configuration, and safe new-repository publishing scripts.
 
@@ -69,11 +69,10 @@ src/net_rx.lua        Packet receive/handshake state machine
 src/net_tick.lua      Discovery/retry/match tick
 src/casting.lua       Motion capture coordinator
 src/training.lua      Teaching, adaptive thresholds, diagnostics
-src/gesture.lua       Small recognizer loader
 src/gesture_sig.lua   Segmentation + normalized derivative signatures
 src/gesture_dtw.lua   Banded DTW + classification
 src/engine.lua        Deterministic game rules and compact state encoding
-dist/app/             14-file low-memory modular runtime package
+dist/app/             13-file low-memory modular runtime package
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)

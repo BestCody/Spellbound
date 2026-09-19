@@ -1,51 +1,63 @@
--- Spellbound coordinator with UI-suspended feature preloading.
+-- Spellbound coordinator with memory-ordered feature loading.
 local APP={}
 SPELLBOUND_APP=APP
 local S=require("core")
-if package and package.loaded then package.loaded["core"]=nil end
 badge.sys.gc_step()
 
 local root_handle
-local network_loaded,casting_loaded=false,false
+local network_loaded,casting_loaded,training_loaded,gesture_loaded=false,false,false,false
 local teach_preloaded,duel_preloaded=false,false
 
-local function install(name,...)
-  local init=require(name);init(S,...)
-  if package and package.loaded then package.loaded[name]=nil end
-  init=nil;badge.sys.gc_step()
-end
-local function ensure_network() if not network_loaded then install("network");network_loaded=true end end
-local function ensure_casting() if not casting_loaded then install("casting");casting_loaded=true end end
 local function gc_hard() for _=1,8 do badge.sys.gc_step() end end
 local function mem(tag)
   local x=badge.sys.stats()
   badge.sys.log(string.format("MEM %s lua=%d peak=%d free=%d widgets=%d",
     tag,x.lua_used or -1,x.lua_peak or -1,x.free_heap or -1,x.widgets or -1))
 end
+local function install(name,...)
+  local init=require(name);init(S,...);init=nil;badge.sys.gc_step()
+end
+local function ensure_network()
+  if not network_loaded then install("network");network_loaded=true end
+end
 local function drop_ui(tag)
-  mem(tag.."-before-ui-drop")
-  S.destroy_ui();gc_hard()
-  mem(tag.."-after-ui-drop")
+  mem(tag.."-before-ui-drop");S.destroy_ui();gc_hard();mem(tag.."-after-ui-drop")
 end
 local function rebuild_ui(tag)
   gc_hard();mem(tag.."-before-ui-rebuild")
-  S.create_ui(root_handle);S.render(S.clock())
-  mem(tag.."-after-ui-rebuild")
+  S.create_ui(root_handle);S.render(S.clock());mem(tag.."-after-ui-rebuild")
 end
+
+-- Hardware require() has a private cache and no package.loaded escape hatch.
+-- Compile the largest recognizer chunk first, while physical heap is largest.
+local function load_gesture_stack(tag)
+  if gesture_loaded and casting_loaded and training_loaded then return end
+  local sig=require("gesture_sig");mem(tag.."-after-gesture-sig")
+  if not casting_loaded then
+    local c=require("casting");c(S,sig);c=nil;casting_loaded=true
+    badge.sys.gc_step();mem(tag.."-after-casting")
+  end
+  S.raw_sample,S.signature=sig.raw_sample,sig.signature;sig=nil;badge.sys.gc_step()
+  local dtw=require("gesture_dtw")
+  S.distance,S.class_score,S.calibrate,S.recognize,S.train_max=
+    dtw.distance,dtw.class_score,dtw.calibrate,dtw.recognize,dtw.train_max
+  dtw=nil;badge.sys.gc_step();gesture_loaded=true;mem(tag.."-after-gesture-dtw")
+  if not training_loaded then
+    local t=require("training");t(S);t=nil;training_loaded=true
+    badge.sys.gc_step();mem(tag.."-after-training")
+  end
+end
+
 local function preload_teach()
   if teach_preloaded then S.phase,S.selected="train_select",1;return end
   drop_ui("teach")
-  ensure_casting();mem("teach-after-casting")
-  S.ensure_training();mem("teach-after-training")
-  S.ensure_gesture();mem("teach-after-gesture")
-  gc_hard();teach_preloaded=true
-  S.phase,S.selected="train_select",1
+  load_gesture_stack("teach")
+  gc_hard();teach_preloaded=true;S.phase,S.selected="train_select",1
   rebuild_ui("teach")
 end
 local function enter_lobby()
   if duel_preloaded and S.radio_started and S.radio_ok then
-    S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0
-    return
+    S.phase,S.peers,S.selected,S.next_tx="lobby",{},1,0;return
   end
   drop_ui("duel")
   if not duel_preloaded then
@@ -67,8 +79,7 @@ local function enter_lobby()
 end
 
 local function enter(root)
-  root_handle=root
-  install("ui",root)
+  root_handle=root;install("ui",root)
   S.me=S.mac_key(badge.radio.mac()) or "000000000000"
   badge.sys.log("Spellbound | firmware "..tostring(badge.sys.version()))
   local now=S.clock();S.render(now);S.leds(now);mem("home-ready")
@@ -83,7 +94,9 @@ local function tick()
 end
 local function button(button,kind)
   local B,K=badge.input.BUTTON,badge.input.KIND;local now=S.clock()
-  if button==B.A and kind==K.RELEASED then if casting_loaded then S.capture_finish(now,false) end;return end
+  if button==B.A and kind==K.RELEASED then
+    if casting_loaded then S.capture_finish(now,false) end;return
+  end
   if kind~=K.PRESSED then return end
   if button==B.B then
     S.capture=nil
@@ -116,23 +129,18 @@ local function button(button,kind)
     if button==B.UP then S.selected=(S.selected+1)%3+1
     elseif button==B.DOWN then S.selected=S.selected%3+1
     elseif button==B.A then S.training={spell=S.selected,samples={}};S.phase="teach" end
-  elseif S.phase=="teach" or S.phase=="duel" then
+  elseif S.phase=="teach" then
     if button==B.A and not S.capture then S.capture_start(now) end
+  elseif S.phase=="duel" then
+    if button==B.A and not S.capture then
+      if casting_loaded then S.capture_start(now) else S.message("Teach spells before duel","X") end
+    end
   elseif S.phase=="result" and button==B.A then S.reset_home() end
 end
 local function exit()
   if S.sid and S.transmit then S.transmit("Q") end
   badge.radio.on_recv(nil);badge.radio.disable();badge.led.clear();badge.led.show()
 end
-local function test_api()
-  ensure_casting();S.ensure_training();S.ensure_gesture();ensure_network();S.ensure_engine()
-  return {signature=S.signature,distance=S.distance,recognize=S.recognize,raw_sample=S.raw_sample,
-    calibrate=S.calibrate,class_score=S.class_score,
-    new_match=S.new_match,apply=S.apply,advance=S.advance,pack_state=S.pack_state,unpack_state=S.unpack_state,
-    split_packet=S.split_packet,receive=S.receive,submit=S.submit,
-    state=function() return {phase=S.phase,role=S.role,match=S.match,view=S.view,pending=S.pending,
-      models=S.models,thresholds=S.thresholds,training=S.training,capture=S.capture,
-      peers=S.peers,sid=S.sid,seq=S.seq,note=S.note,radio=S.radio_ok} end}
-end
-APP.enter,APP.tick,APP.button,APP.exit,APP.test_api=enter,tick,button,exit,test_api
+APP.enter,APP.tick,APP.button,APP.exit=enter,tick,button,exit
+
 return APP
