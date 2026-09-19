@@ -25,5 +25,16 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(BASE + "home_button=1\nconfirm_home=1\n")
 
+    def test_startup_loads_modules_before_ui(self):
+        main = (ROOT / "src" / "main.lua").read_text()
+        enter = main.split("function on_enter(root)", 1)[1].split("function on_tick()", 1)[0]
+        self.assertLess(enter.index("load_components()"), enter.index("ui_create(root)"))
+        self.assertIn("ui_create,label=nil,nil", enter)
+
+        loader = main.split("local function load_components()", 1)[1].split(
+            "local function send_state", 1
+        )[0]
+        self.assertNotIn("ui_create,label=nil,nil", loader)
+
 if __name__ == "__main__":
     unittest.main()
