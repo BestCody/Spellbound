@@ -7,8 +7,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua")
-LAZY_FILES = {"network.lua", "net_rx.lua", "net_tick.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua"}
+RUNTIME_FILES = ("main.lua", "app.lua", "core.lua", "ui.lua", "network.lua", "net_rx.lua", "net_tick.lua", "net_buttons.lua", "effects.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua")
+LAZY_FILES = {"network.lua", "net_rx.lua", "net_tick.lua", "net_buttons.lua", "effects.lua", "casting.lua", "training.lua", "gesture_sig.lua", "gesture_dtw.lua", "engine.lua"}
 LEGACY_STANDALONE = ROOT / "dist" / "Spellbound-install.lua"
 
 
