@@ -12,7 +12,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 ## Network and match
 
 - Explicitly accept and decline invitations. Declining must not repeatedly reopen the same prompt.
-- In button mode, fire once. Confirm exactly 25 damage after the warning, on both screens, and exactly 30 mana spent.
+- In motion casting, fire once. Confirm exactly 25 damage after the warning, on both screens, and exactly 30 mana spent.
 - Shield before impact; confirm no damage and that the shield is consumed. Cast too late; confirm it cannot undo damage.
 - Recharge, check its cooldown, attempt a spell with insufficient mana, and check that the next valid action still works.
 - Play through a win, a surrender, and repeated rematches. Observe dropped-packet diagnostics and practical responsiveness in the crowded event environment.
