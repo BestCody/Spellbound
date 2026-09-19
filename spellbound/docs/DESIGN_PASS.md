@@ -50,8 +50,8 @@ Do not merge or demonstrate on the strength of the desktop memory number alone. 
 
 ## Packaging and validation
 
-The slug remains `spellbound`. All five files in `dist/app` are still required; the import starter is not a self-contained app. No extra modules or binary assets were added. The clean build is below the guide's 48 KiB Share bundle ceiling, but unexpected old files in an installed app directory are not included in that count.
+The slug remains `spellbound`. The physical package contains four files in `dist/app/`: `manifest.cfg`, `main.lua`, `gesture.lua`, and `engine.lua`. No binary assets are required. The clean build remains below the guide's 48 KiB Share bundle ceiling.
 
-Although the guide prefers a single-file app by default, this existing repository deliberately retains its modular installation because combining the compiled game, recognizer, persistence, and UI into one chunk increases startup pressure. The five-file exception is explicit in the installer and documentation; no claim is made that Import alone installs the modules.
+The modular installation is now the canonical competition build. Physical testing showed the legacy one-file importer could hit a Lua memory-limit error while opening the app, so `tools/build.py` no longer generates that flattened artifact. The Badge IDE Files panel must contain both support modules alongside `main.lua`; Import app is not used to add those modules.
 
-Run the original 46 tests, the 16 design regressions in `tests/design_pass.lua`, the six Python manifest-contract tests, both production/checker smoke tests, and `tools/build.py --check`. The build now rejects duplicate manifest keys, invalid heap settings, and conflicting HOME options before creating an installer. Physical validation remains unperformed. Inspect actual text wrapping, LED effects use a fixed competition brightness.
+Run the core Lua tests, the design regressions in `tests/design_pass.lua`, the manifest-contract tests, the modular production/checker smoke tests, and `tools/build.py --check`. The build now rejects duplicate manifest keys, invalid heap settings, and conflicting HOME options before creating an installer. Physical validation remains unperformed. Inspect actual text wrapping, LED effects use a fixed competition brightness.
