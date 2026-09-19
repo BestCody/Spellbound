@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "package_mode": "modular-lazy",
   "runtime_files": 9,
-  "runtime_bytes": 37267,
+  "runtime_bytes": 37268,
   "standalone_import": false,
   "sha256": {
     "app/main.lua": "055f334c98ff3306cf0176051cd65d6b960c12e370ab0dfc0334076cd7117049",
