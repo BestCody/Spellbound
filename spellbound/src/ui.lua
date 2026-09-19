@@ -63,7 +63,7 @@ return function(S,root)
       end
       text("info",title.."\n"..hint.."\n"..footer)
     else
-      local body="",hint="",footer="UP/DOWN select  A open  B back"
+      local body,hint,footer="","","UP/DOWN select  A open  B back"
       if S.phase=="home" or S.phase=="lobby" or S.phase=="train_select" then
         local items=S.phase=="home" and {"Find a duel","Teach a spell"} or {}
         if S.phase=="lobby" then for i,x in ipairs(S.peers) do items[i]="Badge "..x.id:sub(-4) end end
