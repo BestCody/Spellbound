@@ -4,7 +4,7 @@ This pass applies the supplied **Agent instructions: create a Hacker Badge app i
 
 ## Display and interaction
 
-The app still uses only documented widgets at integer positions on a 320x240 screen. After physical logs showed only ~11.9 KiB system heap remaining behind the 18-widget home screen, the UI was first reduced to 9 widgets, then 5, and is now a **3-widget** startup surface (background, text, capture bar). There are no external images, canvas calls, touch handlers, or audio features.
+The app still uses only documented widgets at integer positions on a 320x240 screen. After successive physical memory passes reduced the home screen from 18 to 9 to 5 to 3 widgets, the deep-memory pass now uses a **single native label** as the entire resident UI surface. There are no external images, canvas calls, touch handlers, or audio features.
 
 The duel keeps **YOU HP / FOE HP** and **MANA** visible as compact text; its input state machine and LED effects now live in duel-only modules rather than the resident startup UI/coordinator. The remaining HP bars were removed because physical measurements showed resident Lua/module memory, not native widget objects, was now the limiting resource; incoming attacks remain explicit in text and LED effects.
 
@@ -40,7 +40,7 @@ Bluetooth starts on **Find a duel**, not at app launch. A fresh session can use 
 
 Only Diagnostics performs its extra observed-reading counts. It compares numeric cached values rather than constructing a diagnostic string every 20 ms during every mode. Its display refreshes every 500 ms. **Changed values per second are not measured sensor sample Hz.** A logs firmware, Lua usage/limit/peak, native widget count, and free system heap once to the IDE console.
 
-The production `main.lua` remains only a lifecycle bootstrap. Physical testing then showed that compiling lazy modules after native UI allocation could still fail even after the 9-widget reduction: the home screen had ~24 KiB free system heap but only an ~11.8 KiB largest block. On first entry to Teach or Find a duel, Spellbound deletes the app-owned UI tree before feature loading. Physical logs then showed deleting all nine widgets recovered only about 1 KiB, while the failure occurred specifically while loading the recognizer after casting/training. The badge sandbox has a private `require()` cache and no `package` library, so required modules cannot be evicted during the session. The recognizer therefore has no wrapper module and is loaded in order of compile pressure: `gesture_sig` first, then the smaller casting, DTW, and training chunks. The UI is rebuilt as a five-widget display afterward.
+The production `main.lua` remains only a lifecycle bootstrap. Startup now caches only `app.lua`; the former resident `core.lua` and `ui.lua` modules were folded into a smaller coordinator, while gesture models and multiplayer state are deferred entirely. On first Teach/Find-a-duel entry, Spellbound deletes its one-label UI before feature loading. Teach installs four side-effect modules (`gesture_dtw`, `gesture_sig`, `casting`, `training`); Duel installs four (`network`, `net_rx`, `net_tick`, `engine`). DTW's persistent work area was reduced from two 17-cell rows to two lazily allocated 7-cell rows. Multiplayer match state is a flat numeric array rather than nested HP/mana/shield/cooldown tables. The badge sandbox's private `require()` cache still cannot be evicted, so reducing cached module count is the primary strategy.
 
 ### Important memory limitation
 
@@ -50,7 +50,7 @@ Do not merge or demonstrate on the strength of the desktop memory number alone. 
 
 ## Packaging and validation
 
-The slug remains `spellbound`. The physical package contains 15 files in `dist/app/`: `manifest.cfg` plus 14 Lua modules. The build enforces a sub-2 KiB production `main.lua`, a 4 KiB ceiling for lazy Lua chunks, the documented 16-file Share cap, and the 48 KiB total Share cap.
+The slug remains `spellbound`. The physical package contains 11 files in `dist/app/`: `manifest.cfg` plus 10 Lua modules. The build enforces a sub-2 KiB production `main.lua`, a sub-6 KiB resident `app.lua`, a 4 KiB ceiling for each lazy production chunk, exact runtime-file membership, the documented 16-file Share cap, and the 48 KiB total Share cap. Production Lua is conservatively compacted by removing only blank lines, full-line comments, and indentation.
 
 The lazy modular installation is the canonical competition build. Physical testing showed both the flattened importer and the earlier ~22 KiB `main.lua` layout could exhaust Lua allocation headroom while loading another chunk. The Badge IDE Files panel must therefore contain every runtime module alongside the tiny `main.lua`; Import app is not used to add those modules.
 

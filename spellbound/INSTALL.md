@@ -9,17 +9,13 @@ dist/app/
 ├── manifest.cfg
 ├── main.lua
 ├── app.lua
-├── core.lua
-├── ui.lua
+├── gesture_dtw.lua
+├── gesture_sig.lua
+├── casting.lua
+├── training.lua
 ├── network.lua
 ├── net_rx.lua
 ├── net_tick.lua
-├── net_buttons.lua
-├── effects.lua
-├── casting.lua
-├── training.lua
-├── gesture_sig.lua
-├── gesture_dtw.lua
 └── engine.lua
 ```
 
@@ -35,23 +31,23 @@ the gesture recognizer and duel engine as separate modules.
 4. Open the editor's `main.lua` and replace its contents with
    `dist/app/main.lua`.
 5. In the editor's **Files** panel, use **+** to add each support module:
-   `app.lua`, `core.lua`, `ui.lua`, `network.lua`, `net_rx.lua`,
-   `net_tick.lua`, `net_buttons.lua`, `effects.lua`, `casting.lua`, `training.lua`, `gesture_sig.lua`,
-   `gesture_dtw.lua`, and `engine.lua`.
+   `app.lua`, `gesture_dtw.lua`, `gesture_sig.lua`, `casting.lua`, `training.lua`,
+   `network.lua`, `net_rx.lua`, `net_tick.lua`, and `engine.lua`.
 6. Paste the matching file from `dist/app/` into each editor file.
-7. Verify exactly **14 Lua files plus `manifest.cfg`** are present under the
+7. Verify exactly **10 Lua files plus `manifest.cfg`** are present under the
    same app. Remove editor-only extras such as `README.md`; do not add
    `build-info.json` or `Badge-check.lua` to Spellbound.
 8. Do **not** use **Import app** for support modules. Import app replaces the
    editor workspace; the **+** button adds a module to the current app.
 
-The production `main.lua` is intentionally under 1 KiB. It loads only
-`app.lua`. Runtime features are split into micro-modules so every lazy-loaded
-Lua source chunk stays at or below 4 KiB. On the first Teach/Find-a-duel entry,
-the three-widget UI is deleted before those modules compile. The badge's
-sandboxed `require()` cache cannot be cleared, so the recognizer is loaded in
-memory-safe order: `gesture_sig.lua` first, then the smaller capture,
-DTW/classifier, and training chunks.
+The production `main.lua` is intentionally under 1 KiB and loads only
+`app.lua`; `app.lua` itself requires no startup support module. Every lazy-loaded
+feature chunk stays at or below 4 KiB after conservative production compaction.
+On first Teach/Find-a-duel entry, the one-label UI is deleted before compilation.
+Teach adds exactly `gesture_dtw.lua`, `gesture_sig.lua`, `casting.lua`, and
+`training.lua`; Duel adds exactly `network.lua`, `net_rx.lua`, `net_tick.lua`,
+and `engine.lua`. The badge's private `require()` cache cannot be cleared, so
+these modules are side-effect installers rather than cached export tables.
 
 ## Upload to the first badge
 
@@ -71,7 +67,7 @@ Repeat the same editor setup/push process for the second badge.
 The first goal is to determine whether modular compilation fixes startup memory:
 
 1. Reboot, run `heap`, then open Spellbound.
-2. Run `heap` again and confirm the three-widget home screen launches.
+2. Run `heap` again and confirm the one-widget home screen launches.
 3. Enter **Teach a spell** once and capture every `MEM teach-...` line.
 4. Train Fireball, Shield, and Recharge.
 5. Return home, open **Find a duel**, and capture every `MEM duel-...` line.
@@ -91,17 +87,13 @@ Readable source remains modular:
 ```text
 src/main.lua
 src/app.lua
-src/core.lua
-src/ui.lua
+src/gesture_dtw.lua
+src/gesture_sig.lua
+src/casting.lua
+src/training.lua
 src/network.lua
 src/net_rx.lua
 src/net_tick.lua
-src/net_buttons.lua
-src/effects.lua
-src/casting.lua
-src/training.lua
-src/gesture_sig.lua
-src/gesture_dtw.lua
 src/engine.lua
 ```
 

@@ -5,8 +5,8 @@ Record both badges' firmware versions, the time of the check, and the observed r
 ## Boot and APIs
 
 - Launch the optional Badge Check app. Confirm x/y/z change as the badge is moved and that the other badge receives an A-triggered ping.
-- Install all 15 files from `dist/app/`: `manifest.cfg` plus the 14 Lua files. Do not include `README.md`, `build-info.json`, or `Badge-check.lua` in the Spellbound app. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
-- Capture `heap` before launch and immediately after the home screen opens. On the first Teach entry, capture `MEM teach-before-ui-drop`, `after-ui-drop`, `after-gesture-sig`, `after-casting`, `after-gesture-dtw`, `after-training`, and both UI-rebuild lines. On the first Find-a-duel entry, capture the corresponding duel/network/engine/radio/rebuild lines. The Lua API exposes free system heap but not the largest contiguous block, so pair these logs with the firmware's `heap`/app-reg output where possible.
+- Install all 11 files from `dist/app/`: `manifest.cfg` plus the 10 Lua files. Do not include `README.md`, `build-info.json`, or `Badge-check.lua` in the Spellbound app. Verify the launcher entry, home menu, label readability, button behavior, and all six LEDs.
+- Capture `heap` before launch and immediately after the home screen opens. On the first Teach entry, capture `MEM teach-before-ui-drop`, `after-ui-drop`, `after-gesture-dtw`, `after-gesture-sig`, `after-casting`, `after-training`, and both UI-rebuild lines. On the first Find-a-duel entry, capture `after-network`, `after-net-rx`, `after-net-tick`, `after-engine`, the radio lines, and both UI-rebuild lines. The Lua API exposes free system heap but not the largest contiguous block, so pair these logs with the firmware's `heap`/app-reg output where possible.
 - Confirm no startup/tick/button deadline failures. The implementation targets the documented API 2 guide and newer callback allowances, not a guessed chip firmware.
 
 ## Network and match
@@ -20,7 +20,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 ## Motion and persistence
 
-- Check each preset in Teach. Expect to personalize gestures; no physical accuracy was measured during generation.
+- Check each spell in Teach. Expect to personalize gestures; no physical accuracy was measured during generation.
 - Train all three spells with deliberately distinct movements. Use the fourth repetition as validation, then test additional repetitions not used during training.
 - Test random handling, partial movements, stationary A holds, delayed starts after pressing A, slower/faster and gentler/stronger repetitions, brief mid-gesture pauses, slightly late releases, and energetic (>4 g) flicks. Record false casts as well as rejected intended casts.
 - For every failed physical teach/cast, capture the `GESTURE hold=... active=... peak=... rms=...` line and the `GESTURE scores F=... S=... R=... best=... thr=... ratio=...` line. Use those numbers before changing global thresholds.
@@ -29,7 +29,7 @@ Record both badges' firmware versions, the time of the check, and the observed r
 
 ## Demonstration
 
-Start with a successful button-mode duel, switch to motion, then demonstrate a newly taught gesture. Do not present synthetic fixture pass rates as recognition accuracy. Explain that countdown visuals are approximate and host-authoritative, not perfectly synchronized.
+Start with a successful motion-controlled duel and demonstrate a newly taught gesture. Do not present synthetic fixture pass rates as recognition accuracy. Explain that countdown visuals are approximate and host-authoritative, not perfectly synchronized.
 
 Keep a copy of the prebuilt modular app and the standalone checker. Do not reflash the badge firmware simply to debug an app without first understanding the failure and the organizer's documented recovery procedure.
 

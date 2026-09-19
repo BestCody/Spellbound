@@ -12,7 +12,7 @@ The badge-native pass adds clearer health/mana hierarchy, a separate notificatio
 
 ## Start here
 
-Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The startup UI uses only three native widgets. On first **Teach** entry, Spellbound deletes the UI tree and loads the recognizer in physical-memory order: signature processing first, then capture, DTW/classification, and training. The badge's private `require()` cache cannot be cleared, so unused wrapper modules have been removed rather than pretending to unload them.
+Use the prebuilt **`dist/app/`** package and read **[INSTALL.md](INSTALL.md)** for the browser-IDE procedure. `main.lua` is intentionally tiny. The startup UI uses one native label and startup caches only `app.lua`. On first **Teach** entry, Spellbound deletes that label and loads four side-effect modules in memory-oriented order: DTW/classification, signature processing, capture, then training. On first **Find a duel**, four multiplayer modules are loaded. The badge's private `require()` cache cannot be cleared, so unused wrapper modules have been removed rather than pretending to unload them.
 
 Readable source remains under `src/`, and `tools/build.py` reproducibly generates the modular runtime package. The legacy one-file importer is no longer generated.
 
@@ -24,7 +24,7 @@ Readable source remains under `src/`, and `tools/build.py` reproducibly generate
 - Button-delimited accelerometer capture; segmented, amplitude-normalized derivative templates; banded DTW; adaptive per-spell thresholds; and relative ambiguity rejection.
 - Trained-template gesture recognition only; each spell must be taught with three examples and a fourth validation attempt.
 - Taught gestures are session-only: reopening the app starts with fresh gesture models.
-- Three-widget low-memory UI; HP and mana are rendered as compact text, while duel-only input/LED code loads only with multiplayer.
+- One-widget resident UI; Teach/Duel rendering is installed lazily, and gesture models plus multiplayer state do not exist until those modes are opened.
 - Simplified six-LED spell/damage/victory effects.
 - Tests, reproducible builds, GitHub Actions configuration, and safe new-repository publishing scripts.
 
@@ -61,20 +61,16 @@ On both badges, teach distinct custom gestures first. Then open **Find a duel** 
 ```text
 manifest.cfg          Runtime settings: API 2, 96 KiB, foreground wake lock
 src/main.lua          Tiny lifecycle bootstrap
-src/app.lua           Coordinator and lazy feature loader
-src/core.lua          Shared state and low-cost helpers
-src/ui.lua            UI creation, rendering, and LEDs
-src/network.lua       Radio coordinator
+src/app.lua           Only resident coordinator + one-label home UI
+src/network.lua       Radio coordinator + multiplayer buttons
 src/net_rx.lua        Packet receive/handshake state machine
-src/net_tick.lua      Discovery/retry/match tick
-src/net_buttons.lua   Multiplayer button state machine
-src/effects.lua       Duel-only LED effects
+src/net_tick.lua      Discovery/retry/match tick + duel renderer
 src/casting.lua       Motion capture coordinator
-src/training.lua      Teaching, adaptive thresholds, diagnostics
+src/training.lua      Teaching, lazy models, diagnostics + Teach renderer
 src/gesture_sig.lua   Segmentation + normalized derivative signatures
-src/gesture_dtw.lua   Banded DTW + classification
-src/engine.lua        Deterministic game rules and compact state encoding
-dist/app/             15-file low-memory modular runtime package
+src/gesture_dtw.lua   Banded DTW + classification with lazy 14-cell workspace
+src/engine.lua        Flat host game state + rules + duel LED effects
+dist/app/             11-file runtime package (10 Lua + manifest)
 dist/Badge-check.lua  Optional standalone sensor/radio diagnostic
 tests/                Strict API mock and real-Lua automated tests
 tools/build.py        Reproducible modular packaging (Python 3.10+, no dependencies)
