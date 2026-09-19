@@ -6,7 +6,7 @@ badge.sys.gc_step()
 
 local root_handle
 local network_loaded,casting_loaded,training_loaded,gesture_loaded=false,false,false,false
-local duel_preloaded=false
+local teach_preloaded,duel_preloaded=false,false
 
 local function gc_hard() for _=1,8 do badge.sys.gc_step() end end
 local function mem(tag)
@@ -49,12 +49,10 @@ local function load_gesture_stack(tag)
 end
 
 local function preload_teach()
-  if gesture_loaded and casting_loaded and training_loaded then
-    S.phase,S.selected="train_select",1;return
-  end
+  if teach_preloaded then S.phase,S.selected="train_select",1;return end
   drop_ui("teach")
   load_gesture_stack("teach")
-  gc_hard();S.phase,S.selected="train_select",1
+  gc_hard();teach_preloaded=true;S.phase,S.selected="train_select",1
   rebuild_ui("teach")
 end
 local function enter_lobby()
